@@ -175,7 +175,7 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating public func visitLink(_ link: Link) -> String {
-        let destination = (link.destination ?? "#").encodedHTMLAttribute()
+        let destination = sanitizedURL(link.destination, fallback: "#").encodedHTMLAttribute()
         var result = "<a href=\"\(destination)\">"
 
         for child in link.children {
@@ -187,7 +187,7 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating public func visitImage(_ image: Image) -> String {
-        let source = (image.source ?? "").encodedHTMLAttribute()
+        let source = sanitizedURL(image.source, fallback: "").encodedHTMLAttribute()
         var result = "<img src=\"\(source)\""
 
         if image.isEmpty == false {
@@ -380,4 +380,33 @@ nonisolated struct MarkdownParser: MarkupVisitor {
         return result
     }
 
+    private func sanitizedURL(_ raw: String?, fallback: String) -> String {
+        guard let raw, raw.isEmpty == false else {
+            return fallback
+        }
+
+        if let scheme = urlScheme(from: raw),
+           ["http", "https", "file"].contains(scheme.lowercased()) == false {
+            return fallback
+        }
+
+        return raw
+    }
+
+    private func urlScheme(from raw: String) -> String? {
+        if let range = raw.range(of: "://") {
+            return String(raw[..<range.lowerBound])
+        }
+
+        if let colonRange = raw.range(of: ":") {
+            let prefix = raw[..<colonRange.lowerBound]
+            if let terminatorIndex = raw.firstIndex(where: { $0 == "/" || $0 == "?" || $0 == "#" }),
+               terminatorIndex < colonRange.lowerBound {
+                return nil
+            }
+            return String(prefix)
+        }
+
+        return nil
+    }
 }
