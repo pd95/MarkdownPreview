@@ -77,6 +77,15 @@ extension String {
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")
     }
+
+    nonisolated func encodedHTMLAttribute() -> String {
+        self
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
+    }
 }
 
 nonisolated struct MarkdownParser: MarkupVisitor {
@@ -104,7 +113,7 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     func visitText(_ text: Text) -> String {
-        text.plainText
+        text.plainText.encodedHTMLEntities()
     }
 
     // MARK: - Inline Container Blocks
@@ -166,7 +175,8 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating public func visitLink(_ link: Link) -> String {
-        var result = #"<a href="\#(link.destination ?? "#")">"#
+        let destination = (link.destination ?? "#").encodedHTMLAttribute()
+        var result = "<a href=\"\(destination)\">"
 
         for child in link.children {
             result += visit(child)
@@ -177,18 +187,19 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating public func visitImage(_ image: Image) -> String {
-        var result = "<img src=\"\(image.source ?? "")\""
+        let source = (image.source ?? "").encodedHTMLAttribute()
+        var result = "<img src=\"\(source)\""
 
         if image.isEmpty == false {
             result += " alt=\""
             for child in image.children {
                 if let plainTextMarkup = child as? PlainTextConvertibleMarkup {
-                    result += plainTextMarkup.plainText
+                    result += plainTextMarkup.plainText.encodedHTMLAttribute()
                 }
             }
             result += "\""
         }
-        result += image.title.map { " title=\"\($0)\"" } ?? ""
+        result += image.title.map { " title=\"\($0.encodedHTMLAttribute())\"" } ?? ""
         result += ">"
         return result
     }
@@ -368,4 +379,5 @@ nonisolated struct MarkdownParser: MarkupVisitor {
         result += "</td>\n"
         return result
     }
+
 }
