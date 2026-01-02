@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="206px" height="215px" viewBox="0 0 206 215" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>layer-fold</title>
+    <defs>
+        <linearGradient x1="4.25330813%" y1="-10.5%" x2="95.7466919%" y2="110.5%" id="linearGradient-1">
+            <stop stop-color="#FFFFFF" offset="0%"></stop>
+            <stop stop-color="#DCE2EE" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.85">
+        <g id="Group" transform="translate(-676, -704)">
+            <g id="layer-fold" transform="translate(676.5714, 704)">
+                <path d="M201.142857,52.5714286 C201.142857,139.314286 139.428571,210.285714 64,210.285714 L0,210.285714 C91.4285714,186.628571 180,105.142857 200.571429,0 L201.142857,52.5714286 Z" id="Path" fill="url(#linearGradient-1)" fill-rule="nonzero"></path>
+                <path d="M201.142857,52.5714286 C201.142857,139.314286 139.428571,210.285714 64,210.285714" id="Path" stroke-opacity="0.55" stroke="#B8C2D6" stroke-width="8" stroke-linecap="round"></path>
+            </g>
+        </g>
+    </g>
+</svg>

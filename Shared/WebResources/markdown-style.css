@@ -1,0 +1,215 @@
+/* Markdown Styling for Ollama Chat App */
+
+:root {
+    --text-light: #222;
+    --text-dark: #f0f6fc;
+    --header-light: #1d1d1f;
+    --header-dark: #f0f6fc;
+    --separator-light: #ebebeb;
+    --separator-dark: #393939;
+    --line-light: hsl(210, 21%, 70%);
+    --line-dark: #7f8892;
+    --link-light: #007AFF;
+    --link-dark: #58a6ff;
+    --background-light: #FFFFFF;
+    --background-dark: #1E1E1E;
+}
+
+body {
+    color: var(--text-light);
+    background-color: var(--background-light);
+    font-family: system-ui, sans-serif;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 24px;
+    /* margin-bottom: 16px; */
+    font-weight: 600;
+    /* line-height: 1.25; */
+    color: var(--header-light);
+}
+
+h1 { font-size: 1.8em; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.1em; }
+h5, h6 { font-size: 1em; }
+
+/* Avoid strong within headers */
+h1 strong, h2 strong,
+h3 strong, h4 strong,
+h5 strong, h6 strong {
+    font-weight: inherit;
+}
+
+p {
+    margin-block: 0.5em;
+    line-height: 1.8;
+}
+
+strong, b {
+    font-weight: 600;
+}
+
+/* Links */
+a {
+    color: var(--link-light);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Code blocks */
+pre {
+    background-color: #d1d7e1;
+    border: 1px solid var(--line-light);
+    border-radius: 6px;
+    padding: 8px;
+    overflow-x: auto;
+    font-family: 'SF Mono', monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 16px 0;
+}
+
+/* Inline code */
+code {
+    background-color: #afb8c133;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: 'SF Mono', monospace;
+    font-size: 85%;
+    color: #24292f;
+}
+
+/* Don't style code inside pre blocks */
+pre code {
+    background-color: #F6F6F6;
+    padding: 0;
+    border-radius: 4;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* Blockquotes */
+blockquote {
+    border-left: 4px solid var(--line-light);
+    margin: 0 0 16px 0;
+    padding-left: 16px;
+    color: #656d76;
+    font-style: italic;
+}
+
+think {
+    border-left: 3pt solid #656d76;
+    display: block;
+    padding-left: 0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Lists */
+ul, ol {
+    padding-left: 30px;
+    margin: 16px 0;
+}
+
+li {
+    margin-bottom: 4px;
+}
+
+/* Nested lists */
+li ul, li ol {
+    margin: 4px 0;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+}
+
+th, td {
+    border: 1px solid var(--line-light);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+thead td,
+th {
+    background-color: #f6f8fa;
+    font-weight: 600;
+}
+
+/* Horizontal rule */
+hr {
+    border: none;
+    border-top: 1px solid var(--separator-light);
+    margin: 24px 0;
+}
+
+/* Images */
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    body {
+        color: var(--text-dark);
+        background-color: var(--background-dark);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--header-dark);
+    }
+
+    h1, h2 {
+        border-bottom-color: var(--line-dark);
+    }
+
+    pre {
+        background-color: #161b22;
+        border-color: var(--line-dark);
+        color: #f0f6fc;
+    }
+
+    code {
+        background-color: #6e768166;
+        color: #f0f6fc;
+    }
+
+    pre code {
+        background-color: inherit;
+    }
+
+    blockquote {
+        border-left-color: var(--line-dark);
+        color: #b9b9b9;
+    }
+
+    a {
+        color: var(--link-dark);
+    }
+
+    table, th, td {
+        border-color: var(--line-dark);
+    }
+
+    thead td,
+    th {
+        background-color: #21262d;
+    }
+
+    hr {
+        border-top-color: var(--separator-dark);
+    }
+}

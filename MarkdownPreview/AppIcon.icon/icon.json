@@ -1,0 +1,126 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : "system-dark"
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "layer-hash.svg",
+          "name" : "layer-hash",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -0.07145749999995132,
+              5.7499999911669875e-05
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-gray:0.50000,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "extended-srgb:0.38039,0.33333,0.96078,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "image-name" : "layer-lines.svg",
+          "name" : "layer-lines",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -33.58825918868706,
+              314.1767974957629
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill" : "automatic",
+          "glass" : false,
+          "image-name" : "layer-fold 2.svg",
+          "name" : "layer-fold",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              267.0000140000001,
+              299.50001499999996
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "image-name" : "layer-file 2.svg",
+          "name" : "layer-file 2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -1.1368683772161603e-13,
+              -1.4500000020234438e-05
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

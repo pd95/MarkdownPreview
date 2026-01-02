@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="519px" height="588px" viewBox="0 0 519 588" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>layer-hash</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round">
+        <g id="Group" transform="translate(-241, -218)" stroke="#2B2F38" stroke-width="56">
+            <g id="layer-hash" transform="translate(269.7143, 246.8571)">
+                <line x1="148.571429" y1="0" x2="82.2857143" y2="530.285714" id="Path"></line>
+                <line x1="402.285714" y1="0" x2="336" y2="530.285714" id="Path"></line>
+                <line x1="22.8571429" y1="160" x2="461.714286" y2="160" id="Path"></line>
+                <line x1="0" y1="370.285714" x2="438.857143" y2="370.285714" id="Path"></line>
+            </g>
+        </g>
+    </g>
+</svg>
