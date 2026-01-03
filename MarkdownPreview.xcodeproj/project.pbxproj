@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		17CD184E2F08337200899189 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17CD184D2F08337200899189 /* Quartz.framework */; platformFilters = (macos, ); };
-		17CD185A2F08337200899189 /* QuickLookPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 17CD184B2F08337100899189 /* QuickLookPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		17CD185A2F08337200899189 /* QuickLookPreview_macOS.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */; platformFilters = (macos, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		17CD18882F0862FD00899189 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 17CD18872F0862FD00899189 /* Markdown */; };
 		17CD188A2F08632100899189 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 17CD18892F08632100899189 /* Markdown */; };
 /* End PBXBuildFile section */
@@ -30,7 +30,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				17CD185A2F08337200899189 /* QuickLookPreview.appex in Embed Foundation Extensions */,
+				17CD185A2F08337200899189 /* QuickLookPreview_macOS.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -41,20 +41,20 @@
 		17421AFF2F09491800C7EE6C /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		17421B002F0950BC00C7EE6C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		17421B012F0950BC00C7EE6C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		17CD184B2F08337100899189 /* QuickLookPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickLookPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickLookPreview_macOS.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		17CD184D2F08337200899189 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
 		17FBBD7D2F0831EC00BEAA3E /* MarkdownPreview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarkdownPreview.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		17CD185F2F08337200899189 /* Exceptions for "QuickLookPreview" folder in "QuickLookPreview" target */ = {
+		17CD185F2F08337200899189 /* Exceptions for "QuickLookPreview_macOS" folder in "QuickLookPreview_macOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 17CD184A2F08337100899189 /* QuickLookPreview */;
+			target = 17CD184A2F08337100899189 /* QuickLookPreview_macOS */;
 		};
-		17CD18852F0862D700899189 /* Exceptions for "Shared" folder in "QuickLookPreview" target */ = {
+		17CD18852F0862D700899189 /* Exceptions for "Shared" folder in "QuickLookPreview_macOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				MarkdownParser.swift,
@@ -65,7 +65,7 @@
 				"WebResources/stackoverflow-light.min.css",
 				WebResources/template.html,
 			);
-			target = 17CD184A2F08337100899189 /* QuickLookPreview */;
+			target = 17CD184A2F08337100899189 /* QuickLookPreview_macOS */;
 		};
 		17FBBD892F0831ED00BEAA3E /* Exceptions for "MarkdownPreview" folder in "MarkdownPreview" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -77,18 +77,18 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		17CD184F2F08337200899189 /* QuickLookPreview */ = {
+		17CD184F2F08337200899189 /* QuickLookPreview_macOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				17CD185F2F08337200899189 /* Exceptions for "QuickLookPreview" folder in "QuickLookPreview" target */,
+				17CD185F2F08337200899189 /* Exceptions for "QuickLookPreview_macOS" folder in "QuickLookPreview_macOS" target */,
 			);
-			path = QuickLookPreview;
+			path = QuickLookPreview_macOS;
 			sourceTree = "<group>";
 		};
 		17CD187B2F0862C500899189 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				17CD18852F0862D700899189 /* Exceptions for "Shared" folder in "QuickLookPreview" target */,
+				17CD18852F0862D700899189 /* Exceptions for "Shared" folder in "QuickLookPreview_macOS" target */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -140,7 +140,7 @@
 				17421B002F0950BC00C7EE6C /* LICENSE */,
 				17CD187B2F0862C500899189 /* Shared */,
 				17FBBD7F2F0831EC00BEAA3E /* MarkdownPreview */,
-				17CD184F2F08337200899189 /* QuickLookPreview */,
+				17CD184F2F08337200899189 /* QuickLookPreview_macOS */,
 				17CD184C2F08337200899189 /* Frameworks */,
 				17FBBD7E2F0831EC00BEAA3E /* Products */,
 			);
@@ -150,7 +150,7 @@
 			isa = PBXGroup;
 			children = (
 				17FBBD7D2F0831EC00BEAA3E /* MarkdownPreview.app */,
-				17CD184B2F08337100899189 /* QuickLookPreview.appex */,
+				17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -158,9 +158,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		17CD184A2F08337100899189 /* QuickLookPreview */ = {
+		17CD184A2F08337100899189 /* QuickLookPreview_macOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 17CD185E2F08337200899189 /* Build configuration list for PBXNativeTarget "QuickLookPreview" */;
+			buildConfigurationList = 17CD185E2F08337200899189 /* Build configuration list for PBXNativeTarget "QuickLookPreview_macOS" */;
 			buildPhases = (
 				17CD18472F08337100899189 /* Sources */,
 				17CD18482F08337100899189 /* Frameworks */,
@@ -171,14 +171,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				17CD184F2F08337200899189 /* QuickLookPreview */,
+				17CD184F2F08337200899189 /* QuickLookPreview_macOS */,
 			);
-			name = QuickLookPreview;
+			name = QuickLookPreview_macOS;
 			packageProductDependencies = (
 				17CD18892F08632100899189 /* Markdown */,
 			);
 			productName = QuickLookPreview;
-			productReference = 17CD184B2F08337100899189 /* QuickLookPreview.appex */;
+			productReference = 17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		17FBBD7C2F0831EC00BEAA3E /* MarkdownPreview */ = {
@@ -243,7 +243,7 @@
 			projectRoot = "";
 			targets = (
 				17FBBD7C2F0831EC00BEAA3E /* MarkdownPreview */,
-				17CD184A2F08337100899189 /* QuickLookPreview */,
+				17CD184A2F08337100899189 /* QuickLookPreview_macOS */,
 			);
 		};
 /* End PBXProject section */
@@ -285,7 +285,10 @@
 /* Begin PBXTargetDependency section */
 		17CD18592F08337200899189 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 17CD184A2F08337100899189 /* QuickLookPreview */;
+			platformFilters = (
+				macos,
+			);
+			target = 17CD184A2F08337100899189 /* QuickLookPreview_macOS */;
 			targetProxy = 17CD18582F08337200899189 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -311,8 +314,8 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = QuickLookPreview/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview;
+				INFOPLIST_FILE = QuickLookPreview_macOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview_macOS;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -320,7 +323,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview_macOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -356,8 +359,8 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = QuickLookPreview/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview;
+				INFOPLIST_FILE = QuickLookPreview_macOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview_macOS;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -365,7 +368,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview_macOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -616,7 +619,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		17CD185E2F08337200899189 /* Build configuration list for PBXNativeTarget "QuickLookPreview" */ = {
+		17CD185E2F08337200899189 /* Build configuration list for PBXNativeTarget "QuickLookPreview_macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				17CD185C2F08337200899189 /* Debug */,
