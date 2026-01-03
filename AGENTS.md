@@ -14,6 +14,8 @@
 - There are currently no automated tests wired into the project.
 - If `xcodebuild` crashes during device discovery, reset simulator device sets:
   `for DEVICES_SET in playgrounds previews ib test default; do xcrun simctl --set $DEVICES_SET delete all; done`
+- To test Quick Look on macOS from the CLI after building, run:
+  `qlmanage -r` and `qlmanage -p README.md`.
 
 ## Coding Style & Naming Conventions
 - Swift code uses 4-space indentation and standard Swift formatting as applied by Xcode.
