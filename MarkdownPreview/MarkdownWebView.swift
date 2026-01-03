@@ -27,7 +27,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
 
-#if DEBUG
+#if DEBUG && os(macOS)
         webView.isInspectable = true    // Enable debugging using Safari!
 #endif
         webView.loadHTMLString(html, baseURL: nil)
