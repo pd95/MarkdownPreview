@@ -19,6 +19,7 @@ body {
     color: var(--text-light);
     background-color: var(--background-light);
     font-family: system-ui, sans-serif;
+    margin: 1em 2em;
 }
 
 /* Headers */
@@ -87,7 +88,7 @@ code {
 
 /* Don't style code inside pre blocks */
 pre code {
-    background-color: #F6F6F6;
+    background-color: inherit;
     padding: 0;
     border-radius: 4;
     color: inherit;
@@ -185,10 +186,6 @@ img {
     code {
         background-color: #6e768166;
         color: #f0f6fc;
-    }
-
-    pre code {
-        background-color: inherit;
     }
 
     blockquote {
