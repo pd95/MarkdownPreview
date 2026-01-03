@@ -22,10 +22,12 @@
 - Types and protocols use UpperCamelCase (e.g., `MarkdownDocument`); properties and functions use lowerCamelCase (e.g., `stringFromResource`).
 - Keep file names aligned with their primary type (e.g., `MarkdownWebView.swift`).
 - Prefer concise, descriptive names for resources in `Shared/WebResources/` (e.g., `template.html`, `markdown-style.css`).
+- Aim for best-practice Swift implementations on both iOS and macOS (modern APIs, clear concurrency boundaries, and platform-appropriate design).
 
 ## Testing Guidelines
 - No test targets are present. If adding tests, follow Xcode conventions with `*Tests` targets and place files under a `Tests/` group in the project.
 - Name tests with `test` prefixes (e.g., `testRendersMarkdownLinks`) and keep coverage focused on parser behavior and template rendering.
+- Raw HTML is sanitized for GFM-disallowed tags in `Shared/MarkdownParser.swift`; keep tests aligned with that behavior.
 
 ## Commit & Pull Request Guidelines
 - Recent commits use short, imperative summaries (e.g., "Remove print() and disable \"drawsBackground\"").
