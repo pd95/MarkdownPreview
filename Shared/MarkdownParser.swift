@@ -95,6 +95,17 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     var skipParagraphTags = false
     var currentTable: Table?
     var currentColumnIndex: Int = 0
+    static let disallowedRawHTMLTags = [
+        "title",
+        "textarea",
+        "style",
+        "xmp",
+        "iframe",
+        "noembed",
+        "noframes",
+        "script",
+        "plaintext"
+    ]
 
     init(markdown: String, keepLineBreaks: Bool = false) {
         let document = Document(parsing: markdown)
@@ -295,13 +306,35 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating func visitHTMLBlock(_ html: HTMLBlock) -> String {
-        var result = html.rawHTML
+        var result = sanitizeRawHTML(html.rawHTML)
         result += "\n"
         return result
     }
 
     mutating func visitInlineHTML(_ inlineHTML: InlineHTML) -> String {
-        return inlineHTML.rawHTML
+        return sanitizeRawHTML(inlineHTML.rawHTML)
+    }
+
+    private func sanitizeRawHTML(_ rawHTML: String) -> String {
+        let tags = Self.disallowedRawHTMLTags.joined(separator: "|")
+        let pattern = "(?i)<\\s*/?\\s*(\(tags))\\b"
+        guard let regex = try? Regex(pattern) else {
+            return rawHTML
+        }
+        let matches = rawHTML.matches(of: regex)
+        if matches.isEmpty {
+            return rawHTML
+        }
+
+        let offsets = matches.map { match in
+            rawHTML.distance(from: rawHTML.startIndex, to: match.range.lowerBound)
+        }
+        var result = rawHTML
+        for offset in offsets.sorted(by: >) {
+            let index = result.index(result.startIndex, offsetBy: offset)
+            result.replaceSubrange(index...index, with: "&lt;")
+        }
+        return result
     }
 
     mutating func visitTable(_ table: Table) -> String {
