@@ -16,7 +16,7 @@ nonisolated struct MarkdownDocument: FileDocument {
     }
 
     static let readableContentTypes = [
-        UTType(importedAs: "net.daringfireball.markdown"),
+        UTType.appMarkdown
     ]
     static let writableContentTypes: [UTType] = []
 
