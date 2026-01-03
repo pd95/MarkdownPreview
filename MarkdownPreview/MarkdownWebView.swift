@@ -44,6 +44,16 @@ struct MarkdownWebView: PlatformViewRepresentable {
         }
     }
 
+    static func dismantleView(_ view: WKWebView, coordinator: Coordinator) {
+        view.stopLoading()
+#if DEBUG && os(macOS)
+        view.isInspectable = false
+#endif
+        view.navigationDelegate = nil
+        view.uiDelegate = nil
+        coordinator.webView = nil
+    }
+
 #if os(macOS)
     func makeNSView(context: Context) -> WKWebView {
         makeView(context: context)
@@ -51,6 +61,10 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     func updateNSView(_ view: WKWebView, context: Context) {
         updateView(view, context: context)
+    }
+
+    static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
+        dismantleView(view, coordinator: coordinator)
     }
 
 #else
@@ -61,6 +75,11 @@ struct MarkdownWebView: PlatformViewRepresentable {
     func updateUIView(_ view: WKWebView, context: Context) {
         updateView(view, context: context)
     }
+
+    static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) {
+        dismantleView(view, coordinator: coordinator)
+    }
+
 
 #endif
 
