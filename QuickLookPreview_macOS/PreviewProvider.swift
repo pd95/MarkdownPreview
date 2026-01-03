@@ -13,7 +13,7 @@ import QuickLook
 class PreviewProvider: QLPreviewProvider, QLPreviewingController {
 
     func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
-        let reply = QLPreviewReply(dataOfContentType: .html, contentSize: CGSize.init(width: 800, height: 600)) { (replyToUpdate : QLPreviewReply) in
+        let reply = QLPreviewReply(dataOfContentType: .html, contentSize: .defaultWindowSize) { (replyToUpdate : QLPreviewReply) in
             let data = try Data(contentsOf: request.fileURL)
             let html = TemplateBuilder(data).html
             return html.data(using: .utf8)!
