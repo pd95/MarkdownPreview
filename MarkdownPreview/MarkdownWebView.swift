@@ -20,7 +20,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
     func makeView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
+#if os(macOS)
         webView.setValue(false, forKey: "drawsBackground")
+#endif
         webView.allowsLinkPreview = false
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
