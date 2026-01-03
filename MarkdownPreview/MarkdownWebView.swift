@@ -14,15 +14,13 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var html: String
 
     func makeCoordinator() -> Coordinator {
-        print("🟢", #function)
         return Coordinator(parent: self)
     }
 
     func makeView(context: Context) -> WKWebView {
-        print("🟢", #function)
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
-        //webView.setValue(false, forKey: "drawsBackground")
+        webView.setValue(false, forKey: "drawsBackground")
         webView.allowsLinkPreview = false
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
@@ -36,7 +34,6 @@ struct MarkdownWebView: PlatformViewRepresentable {
     }
 
     func updateView(_ view: WKWebView, context: Context) {
-        print("🟢", #function, context.environment.isPresented)
         context.coordinator.parent = self
 
         // Update state only if view is presented
@@ -76,7 +73,6 @@ struct MarkdownWebView: PlatformViewRepresentable {
         var latestHash: Int = 0
 
         init(parent: MarkdownWebView) {
-            print("🟢", #function)
             self.parent = parent
             super.init()
         }
@@ -86,8 +82,6 @@ struct MarkdownWebView: PlatformViewRepresentable {
             let markdownChanged = newHash != latestHash
             let needsUpdate = markdownChanged
 
-            print("🟢", #function, "needsUpdate = \(needsUpdate)")
-
             if isPageReady && needsUpdate {
                 webView?.loadHTMLString(parent.html, baseURL: nil)
                 latestHash = newHash
@@ -96,7 +90,6 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
         // WKNavigationDelegate
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("🟢", #function)
             isPageReady = true
         }
     }
