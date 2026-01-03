@@ -1,30 +1,30 @@
 # MarkdownPreview
 
-A SwiftUI app for macOS and iOS, plus a Quick Look extension for previewing Markdown files.
+View Markdown documents in iOS and macOS (plus a Quick Look extension for fast previews in Finder!).
 
 ## Features
-- Live rendering of Markdown documents in a lightweight SwiftUI interface.
-- Bundled HTML/CSS templates for consistent styling.
+- Markdown rendering with a lightweight SwiftUI UI app.
+- Bundled HTML/CSS/JS templates for consistent styling.
 - Quick Look extension for Finder previews.
 
 ## Requirements
-- Xcode 26.2+
-- macOS and iOS devices with SwiftUI support
+- Xcode 26
+- macOS 15.6 or an iOS 18.6 device
 
 ## Build
+Open the project:
 ```sh
 open MarkdownPreview.xcodeproj
 ```
 
-CLI builds:
+Build from the CLI:
 ```sh
 xcodebuild -project MarkdownPreview.xcodeproj -scheme MarkdownPreview -configuration Debug build
-xcodebuild -project MarkdownPreview.xcodeproj -scheme QuickLookPreview -configuration Debug build
 ```
 
 ## Project Layout
 - `MarkdownPreview/` app sources
-- `QuickLookPreview/` Quick Look extension
+- `QuickLookPreview_macOS/` Quick Look extension
 - `Shared/` shared Swift code and web assets
 
 ## License
