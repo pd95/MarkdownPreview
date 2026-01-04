@@ -51,14 +51,33 @@ struct FrontMatterTests {
 }
 
 #if canImport(JavaScriptCore)
-@Test func highlightsCodeBlocksWithHighlightJS() throws {
-    let input = """
-    ```swift
-    let value = 1
-    ```
-    """
-    let pipeline = MarkdownPipeline()
-    let document = try pipeline.render(input: .string(input), context: PipelineContext())
-    #expect(document.html.contains("class=\"hljs"))
+@Suite("Highlighting")
+struct HighlightingTests {
+    @Test func highlightsExplicitLanguageBlocks() throws {
+        let input = """
+        ```swift
+        let value = 1
+        ```
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+        #expect(document.html.contains("class=\"hljs"))
+        #expect(document.html.contains("language-swift"))
+    }
+
+    @Test func highlightsAutoLanguageBlocksWithSubset() throws {
+        let input = """
+        ```
+        function greet(name) {
+          return "Hello " + name;
+        }
+        ```
+        """
+        let pipeline = MarkdownPipeline()
+        let context = PipelineContext(highlightLanguageSubset: ["swift", "javascript"])
+        let document = try pipeline.render(input: .string(input), context: context)
+        #expect(document.html.contains("class=\"hljs"))
+        #expect(document.html.contains("language-swift") || document.html.contains("language-javascript"))
+    }
 }
 #endif
