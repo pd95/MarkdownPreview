@@ -9,10 +9,31 @@ import SwiftUI
 
 @main
 struct MarkdownPreviewApp: App {
+    @FocusedValue(\.printAction) private var printAction
+    @FocusedValue(\.pageSetupAction) private var pageSetupAction
+
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(document: file.$document)
         }
         .defaultSize(.defaultWindowSize)
+#if os(macOS)
+        .commands {
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") {
+                    printAction?.run()
+                }
+                .keyboardShortcut("p")
+                .disabled(printAction == nil)
+            }
+            CommandGroup(before: .printItem) {
+                Button("Page Setup…") {
+                    pageSetupAction?.run()
+                }
+                .keyboardShortcut("P", modifiers: [.command, .shift])
+                .disabled(pageSetupAction == nil)
+            }
+        }
+#endif
     }
 }
