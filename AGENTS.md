@@ -42,6 +42,3 @@
 - Prefer `@Suite` groupings in `MarkdownPipelineTests` for related behaviors (e.g., Front Matter, HTML Rendering, Convenience API).
 - Keep HTML rendering tests at the pipeline level (string input → HTML output) instead of constructing ASTs directly.
 - Avoid code highlighting assertions in HTML rendering tests unless explicitly requested; keep those tests separate.
-
-## Helper Documents
-- `PROGRESS.md` tracks MarkdownPipeline progress against `PLAN.md`.
