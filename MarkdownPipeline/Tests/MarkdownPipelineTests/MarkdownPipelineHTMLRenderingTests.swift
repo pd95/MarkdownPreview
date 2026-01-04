@@ -41,6 +41,19 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("<hr>"))
     }
 
+    @Test func rendersCodeBlockWithoutHighlighting() throws {
+        let input = """
+        ```swift
+        let value = 1
+        ```
+        """
+        let pipeline = MarkdownPipeline()
+        let context = PipelineContext(enableCodeHighlighting: false)
+        let document = try pipeline.render(input: .string(input), context: context)
+        #expect(document.html.contains("<pre><code class=\"lang-swift\">"))
+        #expect(document.html.contains("class=\"hljs") == false)
+    }
+
     @Test func rendersInlineCodeAndLinks() throws {
         let input = "Use `code` and [link](https://example.com)."
         let pipeline = MarkdownPipeline()

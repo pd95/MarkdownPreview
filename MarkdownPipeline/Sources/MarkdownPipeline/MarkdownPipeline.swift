@@ -23,10 +23,15 @@ public struct MarkdownPipeline {
         let mergedContext = merge(context: context, frontMatter: extraction.frontMatter)
 
         let document = SwiftMarkdownParser().parse(markdown: extraction.bodyMarkdown)
-        let highlights = CodeBlockHighlighter(
-            highlighter: highlighter,
-            languageSubset: mergedContext.highlightLanguageSubset
-        ).highlights(for: document)
+        let highlights: [Int: CodeHighlightResult]
+        if mergedContext.enableCodeHighlighting {
+            highlights = CodeBlockHighlighter(
+                highlighter: highlighter,
+                languageSubset: mergedContext.highlightLanguageSubset
+            ).highlights(for: document)
+        } else {
+            highlights = [:]
+        }
         let bodyHTML = HTMLVisitor.render(
             document: document,
             keepLineBreaks: true,
