@@ -11,6 +11,8 @@
 		17CD185A2F08337200899189 /* QuickLookPreview_macOS.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */; platformFilters = (macos, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		17CD18882F0862FD00899189 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 17CD18872F0862FD00899189 /* Markdown */; };
 		17CD188A2F08632100899189 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 17CD18892F08632100899189 /* Markdown */; };
+		17A70A872F0AB78300D93FE9 /* MarkdownPipeline in Frameworks */ = {isa = PBXBuildFile; productRef = 17A70A852F0AB78300D93FE9 /* MarkdownPipeline */; };
+		17A70A882F0AB78300D93FE9 /* MarkdownPipeline in Frameworks */ = {isa = PBXBuildFile; productRef = 17A70A862F0AB78300D93FE9 /* MarkdownPipeline */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +116,7 @@
 			files = (
 				17CD184E2F08337200899189 /* Quartz.framework in Frameworks */,
 				17CD188A2F08632100899189 /* Markdown in Frameworks */,
+				17A70A882F0AB78300D93FE9 /* MarkdownPipeline in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -122,6 +125,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				17CD18882F0862FD00899189 /* Markdown in Frameworks */,
+				17A70A872F0AB78300D93FE9 /* MarkdownPipeline in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -182,6 +186,7 @@
 			name = QuickLookPreview_macOS;
 			packageProductDependencies = (
 				17CD18892F08632100899189 /* Markdown */,
+				17A70A862F0AB78300D93FE9 /* MarkdownPipeline */,
 			);
 			productName = QuickLookPreview;
 			productReference = 17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */;
@@ -208,6 +213,7 @@
 			name = MarkdownPreview;
 			packageProductDependencies = (
 				17CD18872F0862FD00899189 /* Markdown */,
+				17A70A852F0AB78300D93FE9 /* MarkdownPipeline */,
 			);
 			productName = MarkdownPreview;
 			productReference = 17FBBD7D2F0831EC00BEAA3E /* MarkdownPreview.app */;
@@ -242,6 +248,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				17CD18862F0862FD00899189 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+				17A70A842F0AB78300D93FE9 /* XCLocalSwiftPackageReference "MarkdownPipeline" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 17FBBD7E2F0831EC00BEAA3E /* Products */;
@@ -652,6 +659,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		17A70A842F0AB78300D93FE9 /* XCLocalSwiftPackageReference "MarkdownPipeline" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = MarkdownPipeline;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		17CD18862F0862FD00899189 /* XCRemoteSwiftPackageReference "swift-markdown" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -673,6 +687,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 17CD18862F0862FD00899189 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
+		};
+		17A70A852F0AB78300D93FE9 /* MarkdownPipeline */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17A70A842F0AB78300D93FE9 /* XCLocalSwiftPackageReference "MarkdownPipeline" */;
+			productName = MarkdownPipeline;
+		};
+		17A70A862F0AB78300D93FE9 /* MarkdownPipeline */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17A70A842F0AB78300D93FE9 /* XCLocalSwiftPackageReference "MarkdownPipeline" */;
+			productName = MarkdownPipeline;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -75,9 +75,13 @@ Relevant commits:
 - Add convenience render API and pipeline tests
 
 ## Milestone 8 — Replace current implementation in the main project
-Status: Not started
+Status: Done
 
-- No call sites in app or QuickLook have been migrated yet.
+- `MarkdownPreview` and `QuickLookPreview_macOS` now render via `MarkdownPipeline`.
+- Legacy `TemplateBuilder` stays as a fallback behind a local feature flag.
+
+Relevant commits:
+- Adopt MarkdownPipeline in app and QuickLook targets
 
 ## Milestone 9 — Tests & golden fixtures
 Status: Partially done
@@ -88,6 +92,10 @@ Status: Partially done
 Relevant commits:
 - Extract YAML front matter and add coverage
 - Add convenience render API and pipeline tests
+- Add HTML rendering suite for pipeline coverage
+- Group front matter tests into a suite
+- Add convenience API test suite
+- Add optional code highlighting toggle and test
 
 ## Commit → Milestone Map
 
@@ -96,3 +104,8 @@ Relevant commits:
 - Render Markdown to HTML with template-based emitter → Milestones 4–5
 - Highlight code blocks via highlight.js transform → Milestone 6
 - Add convenience render API and pipeline tests → Milestone 7 (and tests for Milestone 9)
+- Add HTML rendering suite for pipeline coverage → Milestone 9
+- Group front matter tests into a suite → Milestone 9
+- Add convenience API test suite → Milestones 7 & 9
+- Add optional code highlighting toggle and test → Milestones 6 & 9
+- Update swift-markdown dependency source and version → Maintenance
