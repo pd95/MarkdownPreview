@@ -11,16 +11,19 @@ public struct PipelineContext {
     public var baseURL: URL?
     public var theme: Theme
     public var highlightLanguageSubset: [String]
+    public var enableCodeHighlighting: Bool
 
     public init(
         title: String? = nil,
         baseURL: URL? = nil,
         theme: Theme = .auto,
-        highlightLanguageSubset: [String] = []
+        highlightLanguageSubset: [String] = [],
+        enableCodeHighlighting: Bool = true
     ) {
         self.title = title
         self.baseURL = baseURL
         self.theme = theme
         self.highlightLanguageSubset = highlightLanguageSubset
+        self.enableCodeHighlighting = enableCodeHighlighting
     }
 }
