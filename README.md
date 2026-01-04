@@ -27,6 +27,10 @@ xcodebuild -project MarkdownPreview.xcodeproj -scheme MarkdownPreview -configura
 - `QuickLookPreview_macOS/` Quick Look extension
 - `Shared/` shared Swift code and web assets
 
+## Future Tasks
+- Extract Markdown handling and transformation into a separate Swift Package 
+- Consider adding a custom print panel accessory for header/footer toggles and margin presets.
+
 ## License
 MIT. See `LICENSE`.
 
