@@ -23,6 +23,8 @@ struct HTMLVisitor: MarkupVisitor {
     var skipParagraphTags = false
     var currentTable: Table?
     var currentColumnIndex = 0
+    var codeBlockIndex = 0
+    var codeBlockHighlights: [Int: CodeHighlightResult]
 
     static let disallowedRawHTMLTags = [
         "title",
@@ -36,12 +38,13 @@ struct HTMLVisitor: MarkupVisitor {
         "plaintext"
     ]
 
-    init(keepLineBreaks: Bool = false) {
+    init(keepLineBreaks: Bool = false, codeBlockHighlights: [Int: CodeHighlightResult] = [:]) {
         softBreak = keepLineBreaks ? "<br>" : "\n"
+        self.codeBlockHighlights = codeBlockHighlights
     }
 
-    static func render(document: Document, keepLineBreaks: Bool = false) -> String {
-        var visitor = HTMLVisitor(keepLineBreaks: keepLineBreaks)
+    static func render(document: Document, keepLineBreaks: Bool = false, codeBlockHighlights: [Int: CodeHighlightResult] = [:]) -> String {
+        var visitor = HTMLVisitor(keepLineBreaks: keepLineBreaks, codeBlockHighlights: codeBlockHighlights)
         return visitor.visit(document)
     }
 
@@ -160,6 +163,14 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
+        let highlight = codeBlockHighlights[codeBlockIndex]
+        codeBlockIndex += 1
+
+        if let highlight {
+            let languageClass = highlight.language.map { " language-\($0)" } ?? ""
+            return "<pre><code class=\"hljs\(languageClass)\">\(highlight.html)</code></pre>\n"
+        }
+
         var result = "<pre><code class=\"lang-\(codeBlock.language ?? "plaintext")\">"
         result += codeBlock.code.trimmingCharacters(in: .newlines).encodedHTMLEntities()
         result += "\n</code></pre>\n"
