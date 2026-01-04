@@ -37,13 +37,9 @@ struct MarkdownPipelineFixtureTests {
 
     @Test func rendersFixtureFromFileInput() throws {
         let url = try fixtureURL(named: "sample.md")
-        let data = try Data(contentsOf: url)
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("markdown-fixture.md")
-        try data.write(to: tempURL, options: .atomic)
-
         let pipeline = MarkdownPipeline()
         let context = PipelineContext(enableCodeHighlighting: false)
-        let document = try pipeline.render(input: .file(tempURL), context: context)
+        let document = try pipeline.render(input: .file(url), context: context)
         #expect(document.html.contains("<h1>Sample Heading</h1>"))
     }
 
