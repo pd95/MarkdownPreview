@@ -1,6 +1,34 @@
 import Testing
 @testable import MarkdownPipeline
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+@Test func noFrontMatterReturnsOriginal() {
+    let input = "# Title\nBody text"
+    let result = FrontMatterExtractor().extract(from: input)
+    #expect(result.frontMatter == nil)
+    #expect(result.bodyMarkdown == input)
+}
+
+@Test func validFrontMatterExtractsValues() {
+    let input = """
+    ---
+    title: Something
+    theme: dark
+    ---
+    # Content
+    """
+    let result = FrontMatterExtractor().extract(from: input)
+    #expect(result.frontMatter?.title == "Something")
+    #expect(result.frontMatter?.theme == "dark")
+    #expect(result.bodyMarkdown == "# Content")
+}
+
+@Test func malformedFrontMatterIsIgnored() {
+    let input = """
+    ---
+    title: Something
+    # Content
+    """
+    let result = FrontMatterExtractor().extract(from: input)
+    #expect(result.frontMatter == nil)
+    #expect(result.bodyMarkdown == input)
 }
