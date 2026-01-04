@@ -11,7 +11,6 @@ import MarkdownPipeline
 struct ContentView: View {
     @Binding var document: MarkdownDocument
     @State private var isPrintRequested = false
-    private let useMarkdownPipeline = true
 
     var body: some View {
         MarkdownWebView(
@@ -46,15 +45,12 @@ struct ContentView: View {
     }
 
     private func renderHTML() -> String {
-        if useMarkdownPipeline {
-            let pipeline = MarkdownPipeline.defaultHTML()
-            let context = PipelineContext(title: document.filename)
-            if let document = try? pipeline.renderHTML(from: .data(document.data), context: context) {
-                return document.html
-            }
+        let pipeline = MarkdownPipeline.defaultHTML()
+        let context = PipelineContext(title: document.filename)
+        if let document = try? pipeline.renderHTML(from: .data(document.data), context: context) {
+            return document.html
         }
-
-        return TemplateBuilder(document.data, quickLook: false, filename: document.filename).html
+        return "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"
     }
 }
 

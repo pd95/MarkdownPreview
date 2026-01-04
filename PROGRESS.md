@@ -78,7 +78,7 @@ Relevant commits:
 Status: Done
 
 - `MarkdownPreview` and `QuickLookPreview_macOS` now render via `MarkdownPipeline`.
-- Legacy `TemplateBuilder` stays as a fallback behind a local feature flag.
+- Legacy `TemplateBuilder`/`MarkdownParser` removed in favor of `MarkdownPipeline`.
 
 Relevant commits:
 - Adopt MarkdownPipeline in app and QuickLook targets
