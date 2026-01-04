@@ -33,7 +33,10 @@ let package = Package(
         ),
         .testTarget(
             name: "MarkdownPipelineTests",
-            dependencies: ["MarkdownPipeline"]
+            dependencies: ["MarkdownPipeline"],
+            resources: [
+                .process("Fixtures"),
+            ]
         ),
     ]
 )
