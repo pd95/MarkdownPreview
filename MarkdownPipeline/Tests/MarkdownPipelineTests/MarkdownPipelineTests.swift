@@ -32,3 +32,30 @@ import Testing
     #expect(result.frontMatter == nil)
     #expect(result.bodyMarkdown == input)
 }
+
+@Test func sanitizesDisallowedRawHTML() throws {
+    let input = "<script>alert('xss')</script>"
+    let pipeline = MarkdownPipeline()
+    let document = try pipeline.render(input: .string(input), context: PipelineContext())
+    #expect(document.html.contains("&lt;script"))
+}
+
+@Test func sanitizesUnsafeLinks() throws {
+    let input = "[link](javascript:alert(1))"
+    let pipeline = MarkdownPipeline()
+    let document = try pipeline.render(input: .string(input), context: PipelineContext())
+    #expect(document.html.contains("href=\"#\""))
+}
+
+#if canImport(JavaScriptCore)
+@Test func highlightsCodeBlocksWithHighlightJS() throws {
+    let input = """
+    ```swift
+    let value = 1
+    ```
+    """
+    let pipeline = MarkdownPipeline()
+    let document = try pipeline.render(input: .string(input), context: PipelineContext())
+    #expect(document.html.contains("class=\"hljs"))
+}
+#endif
