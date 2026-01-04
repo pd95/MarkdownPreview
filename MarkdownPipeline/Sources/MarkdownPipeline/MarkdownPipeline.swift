@@ -13,6 +13,10 @@ public struct MarkdownPipeline {
         MarkdownPipeline(defaultTheme: theme)
     }
 
+    public func renderHTML(from input: MarkdownInput, context: PipelineContext = PipelineContext()) throws -> HTMLDocument {
+        try render(input: input, context: context)
+    }
+
     public func render(input: MarkdownInput, context: PipelineContext) throws -> HTMLDocument {
         let markdown = try input.resolvedString()
         let extraction = FrontMatterExtractor().extract(from: markdown)
