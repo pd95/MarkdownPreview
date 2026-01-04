@@ -15,7 +15,7 @@ class PreviewProvider: QLPreviewProvider, QLPreviewingController {
     func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
         let reply = QLPreviewReply(dataOfContentType: .html, contentSize: .defaultWindowSize) { (replyToUpdate : QLPreviewReply) in
             let data = try Data(contentsOf: request.fileURL)
-            let html = TemplateBuilder(data, quickLook: true).html
+            let html = TemplateBuilder(data, quickLook: true, filename: request.fileURL.lastPathComponent).html
 
             // Read bundled resources and create attachments
             let bundle = Bundle.main
