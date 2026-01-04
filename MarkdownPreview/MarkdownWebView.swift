@@ -12,6 +12,7 @@ typealias PlatformView = UIView
 struct MarkdownWebView: PlatformViewRepresentable {
 
     var html: String
+    private var baseURL: URL? { Bundle.main.resourceURL }
 
     func makeCoordinator() -> Coordinator {
         return Coordinator(parent: self)
@@ -30,7 +31,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
 #if DEBUG && os(macOS)
         webView.isInspectable = true    // Enable debugging using Safari!
 #endif
-        webView.loadHTMLString(html, baseURL: nil)
+        webView.loadHTMLString(html, baseURL: baseURL)
 
         return webView
     }
@@ -104,7 +105,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             let needsUpdate = markdownChanged
 
             if isPageReady && needsUpdate {
-                webView?.loadHTMLString(parent.html, baseURL: nil)
+                webView?.loadHTMLString(parent.html, baseURL: parent.baseURL)
                 latestHash = newHash
             }
         }
