@@ -10,9 +10,11 @@ import UniformTypeIdentifiers
 
 nonisolated struct MarkdownDocument: FileDocument {
     var data: Data
+    let filename: String?
 
     init(data: Data = Data()) {
         self.data = data
+        self.filename = nil
     }
 
     static let readableContentTypes = [
@@ -26,6 +28,7 @@ nonisolated struct MarkdownDocument: FileDocument {
             throw CocoaError(.fileReadCorruptFile)
         }
         self.data = data
+        self.filename = configuration.file.preferredFilename
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {

@@ -11,10 +11,12 @@ nonisolated struct TemplateBuilder {
 
     let markdown: String
     let quickLook: Bool
+    let filename: String
 
-    init(_ data: Data, quickLook: Bool) {
+    init(_ data: Data, quickLook: Bool, filename: String?) {
         markdown = String(data: data, encoding: .utf8) ?? ""
         self.quickLook = quickLook
+        self.filename = filename ?? ""
     }
 
     var html: String {
@@ -31,6 +33,7 @@ nonisolated struct TemplateBuilder {
 
         // Replace content placeholder for content
         let html = template
+            .replacingOccurrences(of: "{{FILENAME}}", with: filename)
             .replacingOccurrences(of: "{{HTML}}", with: htmlContent)
 
         return html
