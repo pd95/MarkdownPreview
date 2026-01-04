@@ -323,7 +323,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview_macOS;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview.macOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -365,7 +365,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview_macOS;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkdownPreview.QuickLookPreview.macOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
