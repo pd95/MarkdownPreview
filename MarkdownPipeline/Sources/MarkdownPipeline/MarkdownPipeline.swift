@@ -2,9 +2,11 @@ import Foundation
 
 public struct MarkdownPipeline {
     private let defaultTheme: PipelineContext.Theme
+    private let highlighter: HLJSHighlighter
 
     public init(defaultTheme: PipelineContext.Theme = .auto) {
         self.defaultTheme = defaultTheme
+        self.highlighter = HLJSHighlighter()
     }
 
     public static func defaultHTML(theme: PipelineContext.Theme = .auto) -> MarkdownPipeline {
@@ -17,7 +19,15 @@ public struct MarkdownPipeline {
         let mergedContext = merge(context: context, frontMatter: extraction.frontMatter)
 
         let document = SwiftMarkdownParser().parse(markdown: extraction.bodyMarkdown)
-        let bodyHTML = HTMLVisitor.render(document: document, keepLineBreaks: true)
+        let highlights = CodeBlockHighlighter(
+            highlighter: highlighter,
+            languageSubset: mergedContext.highlightLanguageSubset
+        ).highlights(for: document)
+        let bodyHTML = HTMLVisitor.render(
+            document: document,
+            keepLineBreaks: true,
+            codeBlockHighlights: highlights
+        )
         let html = try HTMLEmitter().render(bodyHTML: bodyHTML, title: mergedContext.title, theme: mergedContext.theme)
         return HTMLDocument(html: html, title: mergedContext.title, baseURL: mergedContext.baseURL)
     }
