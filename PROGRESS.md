@@ -84,10 +84,11 @@ Relevant commits:
 - Adopt MarkdownPipeline in app and QuickLook targets
 
 ## Milestone 9 — Tests & golden fixtures
-Status: Partially done
+Status: Done
 
-- Tests added for front matter, sanitization, and highlight output.
-- Golden/fixture-style tests not added yet.
+- Tests added for front matter, sanitization, HTML rendering, and convenience APIs.
+- Fixture-based test added using `sample.md` (pipeline-level assertions).
+- Golden/fixture-style tests now present via fixtures.
 
 Relevant commits:
 - Extract YAML front matter and add coverage
@@ -96,6 +97,7 @@ Relevant commits:
 - Group front matter tests into a suite
 - Add convenience API test suite
 - Add optional code highlighting toggle and test
+- Add fixture-based pipeline tests
 
 ## Commit → Milestone Map
 
@@ -109,3 +111,4 @@ Relevant commits:
 - Add convenience API test suite → Milestones 7 & 9
 - Add optional code highlighting toggle and test → Milestones 6 & 9
 - Update swift-markdown dependency source and version → Maintenance
+- Add fixture-based pipeline tests → Milestone 9
