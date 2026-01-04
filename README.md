@@ -29,3 +29,6 @@ xcodebuild -project MarkdownPreview.xcodeproj -scheme MarkdownPreview -configura
 
 ## License
 MIT. See `LICENSE`.
+
+## Third-Party Notices
+See `THIRD_PARTY_NOTICES`.

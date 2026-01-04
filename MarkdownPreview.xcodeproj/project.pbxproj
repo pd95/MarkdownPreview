@@ -44,6 +44,7 @@
 		17421B012F0950BC00C7EE6C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickLookPreview_macOS.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		17CD184D2F08337200899189 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
+		17FBAA822F09EBDF0023F755 /* THIRD_PARTY_NOTICES */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES; sourceTree = "<group>"; };
 		17FBBD7D2F0831EC00BEAA3E /* MarkdownPreview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarkdownPreview.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -142,6 +143,7 @@
 				17421B012F0950BC00C7EE6C /* README.md */,
 				17421AFF2F09491800C7EE6C /* AGENTS.md */,
 				17421B002F0950BC00C7EE6C /* LICENSE */,
+				17FBAA822F09EBDF0023F755 /* THIRD_PARTY_NOTICES */,
 				17CD187B2F0862C500899189 /* Shared */,
 				17FBBD7F2F0831EC00BEAA3E /* MarkdownPreview */,
 				17CD184F2F08337200899189 /* QuickLookPreview_macOS */,
