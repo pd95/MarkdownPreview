@@ -32,12 +32,18 @@
 ## Commit & Pull Request Guidelines
 - Recent commits use short, imperative summaries (e.g., "Remove print() and disable \"drawsBackground\"").
 - Keep commits focused on a single change area.
+- Use multi-line commit messages: a short title plus 2–4 bullets describing the main changes.
 - PRs should include a brief description, steps to validate, and screenshots for UI changes in the preview rendering.
 - Link related issues when applicable and call out any manual testing performed in Xcode.
 
 ## Security & Configuration Tips
 - The markdown parser sanitizes link and image URLs; be cautious when changing `MarkdownParser` link handling.
 - Web assets are loaded from the app bundle; update `Shared/WebResources/` carefully to avoid breaking template placeholders.
+
+## Testing Notes
+- Prefer `@Suite` groupings in `MarkdownPipelineTests` for related behaviors (e.g., Front Matter, HTML Rendering, Convenience API).
+- Keep HTML rendering tests at the pipeline level (string input → HTML output) instead of constructing ASTs directly.
+- Avoid code highlighting assertions in HTML rendering tests unless explicitly requested; keep those tests separate.
 
 ## Helper Documents
 - `PROGRESS.md` tracks MarkdownPipeline progress against `PLAN.md`.
