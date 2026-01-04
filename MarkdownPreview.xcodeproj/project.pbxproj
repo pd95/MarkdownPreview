@@ -58,6 +58,7 @@
 		17CD18852F0862D700899189 /* Exceptions for "Shared" folder in "QuickLookPreview_macOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Bundle-Extension.swift",
 				DefaultSize.swift,
 				MarkdownParser.swift,
 				TemplateBuilder.swift,

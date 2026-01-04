@@ -20,10 +20,6 @@ nonisolated struct MarkdownDocument: FileDocument {
     ]
     static let writableContentTypes: [UTType] = []
 
-    var html: String {
-        TemplateBuilder(data).html
-    }
-
     init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents
         else {

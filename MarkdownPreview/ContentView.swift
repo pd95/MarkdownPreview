@@ -11,7 +11,7 @@ struct ContentView: View {
     @Binding var document: MarkdownDocument
 
     var body: some View {
-        MarkdownWebView(html: document.html)
+        MarkdownWebView(html: TemplateBuilder(document.data, quickLook: false).html)
     }
 }
 
