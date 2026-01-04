@@ -1,84 +1,14 @@
-//
-//  MarkdownParser.swift
-//  LiveScribe
-//
-//  Created by Philipp on 15.02.2025.
-//
-
-import Foundation
 import Markdown
 
-#if canImport(Playgrounds)
-import Playgrounds
-
-#Playground {
-    let text = """
-# Sample Markdown
-
-This is some basic, sample markdown.
-
-## Second Heading
-|x|y|z|
-|-|-|-|
-|1|2|3|
-
- * Unordered lists, and:
-  1. One
-  1. Two
-  1. Three
- * More
-
-> Blockquote
-
-And **bold**, *italics*, and even *italics and later **bold***. Even ~~strikethrough~~. [A link](https://markdowntohtml.com) to somewhere.
-
-And code highlighting:
-
-```js 
-var foo = 'bar';
-
-function baz(s) {
-   return foo + ':' + s;
-}
-```
-
-Or inline code like `var foo = 'bar';`.
-
-Or an image of bears
-
-![bears](http://placebear.com/200/200)
-
-A HTML block:
-
-<dl>
-  <dt>Definition list</dt>
-  <dd>Is something people use sometimes.</dd>
-
-  <dt>Markdown in HTML</dt>
-  <dd>Does *not* work **very** well. Use HTML <em>tags</em>.</dd>
-</dl>
-
-```swift
-let x = 42
-print("Hello, World! \\(x)")
-// What happens to a HTML link in a code block? <a href="https://markdowntohtml.com">A link</a>
-```
-
-The end ...
-"""
-    _ = MarkdownParser(markdown: text).text
-}
-#endif
-
 extension String {
-    nonisolated func encodedHTMLEntities() -> String {
+    func encodedHTMLEntities() -> String {
         self
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")
     }
 
-    nonisolated func encodedHTMLAttribute() -> String {
+    func encodedHTMLAttribute() -> String {
         self
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
@@ -88,13 +18,14 @@ extension String {
     }
 }
 
-nonisolated struct MarkdownParser: MarkupVisitor {
-    var text = ""
+struct HTMLVisitor: MarkupVisitor {
     var softBreak: String
-
     var skipParagraphTags = false
     var currentTable: Table?
-    var currentColumnIndex: Int = 0
+    var currentColumnIndex = 0
+    var codeBlockIndex = 0
+    var codeBlockHighlights: [Int: CodeHighlightResult]
+
     static let disallowedRawHTMLTags = [
         "title",
         "textarea",
@@ -107,19 +38,21 @@ nonisolated struct MarkdownParser: MarkupVisitor {
         "plaintext"
     ]
 
-    init(markdown: String, keepLineBreaks: Bool = false) {
-        let document = Document(parsing: markdown)
-        self.softBreak = keepLineBreaks ? "<br>" : "\n"
-        text = visit(document)
+    init(keepLineBreaks: Bool = false, codeBlockHighlights: [Int: CodeHighlightResult] = [:]) {
+        softBreak = keepLineBreaks ? "<br>" : "\n"
+        self.codeBlockHighlights = codeBlockHighlights
+    }
+
+    static func render(document: Document, keepLineBreaks: Bool = false, codeBlockHighlights: [Int: CodeHighlightResult] = [:]) -> String {
+        var visitor = HTMLVisitor(keepLineBreaks: keepLineBreaks, codeBlockHighlights: codeBlockHighlights)
+        return visitor.visit(document)
     }
 
     mutating func defaultVisit(_ markup: any Markup) -> String {
         var result = ""
-
         for child in markup.children {
             result += visit(child)
         }
-
         return result
     }
 
@@ -127,7 +60,6 @@ nonisolated struct MarkdownParser: MarkupVisitor {
         text.plainText.encodedHTMLEntities()
     }
 
-    // MARK: - Inline Container Blocks
     mutating func visitParagraph(_ paragraph: Paragraph) -> String {
         var result: String
         let shouldSkipParagraph = skipParagraphTags
@@ -150,54 +82,44 @@ nonisolated struct MarkdownParser: MarkupVisitor {
         return result
     }
 
-
-    // MARK: - Inline Container Nodes
     mutating func visitStrong(_ strong: Strong) -> String {
         var result = "<strong>"
-
         for child in strong.children {
             result += visit(child)
         }
-
         result += "</strong>"
         return result
     }
 
     mutating func visitEmphasis(_ emphasis: Emphasis) -> String {
         var result = "<em>"
-
         for child in emphasis.children {
             result += visit(child)
         }
-
         result += "</em>"
         return result
     }
 
     mutating func visitStrikethrough(_ strikethrough: Strikethrough) -> String {
         var result = "<del>"
-
         for child in strikethrough.children {
             result += visit(child)
         }
-
         result += "</del>"
         return result
     }
 
-    mutating public func visitLink(_ link: Link) -> String {
+    mutating func visitLink(_ link: Link) -> String {
         let destination = sanitizedURL(link.destination, fallback: "#").encodedHTMLAttribute()
         var result = "<a href=\"\(destination)\">"
-
         for child in link.children {
             result += visit(child)
         }
-
         result += "</a>"
         return result
     }
 
-    mutating public func visitImage(_ image: Image) -> String {
+    mutating func visitImage(_ image: Image) -> String {
         let source = sanitizedURL(image.source, fallback: "").encodedHTMLAttribute()
         var result = "<img src=\"\(source)\""
 
@@ -215,86 +137,82 @@ nonisolated struct MarkdownParser: MarkupVisitor {
         return result
     }
 
-    // MARK: - Inline Leaf Nodes
-    public func visitInlineCode(_ inlineCode: InlineCode) -> String {
+    func visitInlineCode(_ inlineCode: InlineCode) -> String {
         "<code>\(inlineCode.code.encodedHTMLEntities())</code>"
     }
 
-    public func visitLineBreak(_ lineBreak: LineBreak) -> String {
+    func visitLineBreak(_ lineBreak: LineBreak) -> String {
         "<br>"
     }
 
-    public func visitSoftBreak(_ softBreak: SoftBreak) -> String {
+    func visitSoftBreak(_ softBreak: SoftBreak) -> String {
         self.softBreak
     }
 
-    public func visitSymbolLink(_ symbolLink: SymbolLink) -> String {
+    func visitSymbolLink(_ symbolLink: SymbolLink) -> String {
         "<code>\(symbolLink.destination ?? "")</code>"
     }
 
-    // MARK: - Block Leaf Nodes
-    mutating public func visitHeading(_ heading: Heading) -> String {
+    mutating func visitHeading(_ heading: Heading) -> String {
         var result = "<h\(heading.level)>"
-
         for child in heading.children {
             result += visit(child)
         }
-
         result += "</h\(heading.level)>\n"
         return result
     }
 
-    mutating public func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
+    mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
+        let highlight = codeBlockHighlights[codeBlockIndex]
+        codeBlockIndex += 1
+
+        if let highlight {
+            let languageClass = highlight.language.map { " language-\($0)" } ?? ""
+            return "<pre><code class=\"hljs\(languageClass)\">\(highlight.html)</code></pre>\n"
+        }
+
         var result = "<pre><code class=\"lang-\(codeBlock.language ?? "plaintext")\">"
-
         result += codeBlock.code.trimmingCharacters(in: .newlines).encodedHTMLEntities()
-
         result += "\n</code></pre>\n"
         return result
     }
 
-    public func visitThematicBreak(_ thematicBreak: ThematicBreak) -> String {
+    func visitThematicBreak(_ thematicBreak: ThematicBreak) -> String {
         "<hr>"
     }
 
-    mutating public func visitBlockQuote(_ blockQuote: BlockQuote) -> String {
+    mutating func visitBlockQuote(_ blockQuote: BlockQuote) -> String {
         var result = "<blockquote>\n"
-
         for child in blockQuote.children {
             result += visit(child)
         }
-
         result += "</blockquote>\n"
         return result
     }
 
-    mutating public func visitOrderedList(_ orderedList: OrderedList) -> String {
+    mutating func visitOrderedList(_ orderedList: OrderedList) -> String {
         var result = "<ol>\n"
-
         for child in orderedList.listItems {
             result += visit(child)
         }
-
         result += "</ol>\n"
         return result
     }
 
-    mutating public func visitUnorderedList(_ orderedList: UnorderedList) -> String {
+    mutating func visitUnorderedList(_ orderedList: UnorderedList) -> String {
         var result = "<ul>\n"
-
         for child in orderedList.listItems {
             result += visit(child)
         }
-
         result += "</ul>\n"
         return result
     }
 
-    mutating public func visitListItem(_ listItem: ListItem) -> String {
+    mutating func visitListItem(_ listItem: ListItem) -> String {
         var result = "<li>"
 
         if let checkbox = listItem.checkbox {
-            result += "<input type=\"checkbox\" disabled \(checkbox == .checked ? " checked" : "")>"
+            result += "<input type=\"checkbox\" disabled\(checkbox == .checked ? " checked" : "")>"
         }
         skipParagraphTags = true
         for child in listItem.children {
@@ -312,7 +230,7 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating func visitInlineHTML(_ inlineHTML: InlineHTML) -> String {
-        return sanitizeRawHTML(inlineHTML.rawHTML)
+        sanitizeRawHTML(inlineHTML.rawHTML)
     }
 
     private func sanitizeRawHTML(_ rawHTML: String) -> String {
@@ -353,7 +271,6 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating func visitTableHead(_ head: Table.Head) -> String {
-
         var result = "<thead>"
         currentColumnIndex = 0
         for child in head.children {
@@ -365,7 +282,6 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating func visitTableBody(_ body: Table.Body) -> String {
-
         var result = "<tbody>"
         for child in body.children {
             result += visit(child)
@@ -388,8 +304,6 @@ nonisolated struct MarkdownParser: MarkupVisitor {
     }
 
     mutating func visitTableCell(_ cell: Table.Cell) -> String {
-        var result: String
-
         var attributes = ""
         if cell.colspan > 1 {
             attributes += " colspan=\"\(cell.colspan)\""
@@ -398,11 +312,10 @@ nonisolated struct MarkdownParser: MarkupVisitor {
             attributes += " rowspan=\"\(cell.rowspan)\""
         }
         if let alignment = currentTable?.columnAlignments[currentColumnIndex] {
-            attributes +=  "  style=\"text-align:\(String(describing: alignment))\""
+            attributes += "  style=\"text-align:\(String(describing: alignment))\""
         }
 
-        result = "<td\(attributes)>"
-
+        var result = "<td\(attributes)>"
         for child in cell.children {
             result += visit(child)
         }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MarkdownPipeline
 
 struct ContentView: View {
     @Binding var document: MarkdownDocument
@@ -13,7 +14,7 @@ struct ContentView: View {
 
     var body: some View {
         MarkdownWebView(
-            html: TemplateBuilder(document.data, quickLook: false, filename: document.filename).html,
+            html: renderHTML(),
             printRequested: $isPrintRequested
         )
 #if os(macOS)
@@ -41,6 +42,15 @@ struct ContentView: View {
             }
         })
 #endif
+    }
+
+    private func renderHTML() -> String {
+        let pipeline = MarkdownPipeline.defaultHTML()
+        let context = PipelineContext(title: document.filename)
+        if let document = try? pipeline.renderHTML(from: .data(document.data), context: context) {
+            return document.html
+        }
+        return "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"
     }
 }
 
