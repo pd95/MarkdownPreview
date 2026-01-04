@@ -38,3 +38,6 @@
 ## Security & Configuration Tips
 - The markdown parser sanitizes link and image URLs; be cautious when changing `MarkdownParser` link handling.
 - Web assets are loaded from the app bundle; update `Shared/WebResources/` carefully to avoid breaking template placeholders.
+
+## Helper Documents
+- `PROGRESS.md` tracks MarkdownPipeline progress against `PLAN.md`.
