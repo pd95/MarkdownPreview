@@ -104,10 +104,18 @@ pre {
     opacity: .25;
 }
 
-.copy-btn:hover, .copy-btn:focus {
+.copy-btn:focus-visible {
     opacity: 1;
     background: var(--link-light);
     color: var(--text-dark);
+}
+
+@media (hover: hover) {
+    .copy-btn:hover {
+        opacity: 1;
+        background: var(--link-light);
+        color: var(--text-dark);
+    }
 }
 
 .copy-btn.is-copied {
@@ -123,9 +131,15 @@ pre {
         color: var(--text-dark);
         border-color: var(--line-dark);
     }
-    .copy-btn:hover, .copy-btn:focus {
+    .copy-btn:focus-visible {
         background: var(--link-dark);
         color: var(--text-light);
+    }
+    @media (hover: hover) {
+        .copy-btn:hover {
+            background: var(--link-dark);
+            color: var(--text-light);
+        }
     }
     .copy-btn.is-copied {
         background: var(--success-lime);
