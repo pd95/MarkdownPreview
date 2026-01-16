@@ -47,7 +47,7 @@ struct ContentView: View {
     private func renderHTML() -> String {
         let pipeline = MarkdownPipeline.defaultHTML()
         let context = PipelineContext(title: document.filename)
-        if let document = try? pipeline.renderHTML(from: .data(document.data), context: context) {
+        if let document = try? pipeline.renderHTML(from: .string(document.text), context: context) {
             return document.html
         }
         return "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"

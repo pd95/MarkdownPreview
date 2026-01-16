@@ -9,30 +9,34 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 nonisolated struct MarkdownDocument: FileDocument {
-    var data: Data
+    var text: String
     let filename: String?
 
-    init(data: Data = Data()) {
-        self.data = data
+    init(text: String = "") {
+        self.text = text
         self.filename = nil
     }
 
     static let readableContentTypes = [
         UTType.appMarkdown
     ]
-    static let writableContentTypes: [UTType] = []
+    static let writableContentTypes = [
+        UTType.appMarkdown
+    ]
 
     init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents
-        else {
+        guard let data = configuration.file.regularFileContents else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        self.data = data
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.text = text
         self.filename = configuration.file.preferredFilename
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        fatalError("Writing not supported!")
-        //return .init(regularFileWithContents: data)
+        let data = text.data(using: .utf8) ?? Data()
+        return .init(regularFileWithContents: data)
     }
 }
