@@ -76,6 +76,62 @@ pre {
     margin: 16px 0;
 }
 
+/* Copy button for code blocks */
+.code-block {
+    position: relative;
+}
+
+.copy-btn {
+    position: absolute;
+    top: -16px;
+    right: 5px;
+    cursor: pointer;
+    padding: 1px 3px;
+    font-size: .9rem;
+    background: var(--background-light);
+    color: var(--text-light);
+    border: 1px solid var(--line-light);
+    border-radius: 6px;
+    opacity: .25;
+}
+
+.copy-btn:hover, .copy-btn:focus {
+    opacity: 1;
+    background: var(--link-light);
+    color: var(--text-dark);
+}
+
+/* dark‑mode tweaks */
+@media (prefers-color-scheme: dark) {
+    .copy-btn {
+        background: var(--background-dark);
+        color: var(--text-dark);
+        border-color: var(--line-dark);
+    }
+    .copy-btn:hover, .copy-btn:focus {
+        background: var(--link-dark);
+        color: var(--text-light);
+    }
+}
+
+.copy-btn svg {
+    pointer-events: none;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Inline code */
 code {
     background-color: #afb8c133;
