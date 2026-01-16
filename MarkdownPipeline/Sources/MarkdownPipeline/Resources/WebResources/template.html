@@ -39,10 +39,13 @@
                     const label = button.querySelector('.sr-only');
                     button.classList.add('is-copied');
                     label.textContent = 'Copied';
+                    if (window.matchMedia('(pointer: coarse)').matches) {
+                        button.blur();
+                    }
                     setTimeout(() => {
                         button.classList.remove('is-copied');
                         label.textContent = 'Copy code';
-                    }, 3000);
+                    }, 1500);
                 });
             });
         </script>
