@@ -108,7 +108,9 @@ struct ContentView: View {
     }
 
     private func updateDocument(with text: String) {
-        document.text = text
+        if document.text != text {
+            document.text = text
+        }
     }
 }
 
