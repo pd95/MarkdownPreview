@@ -25,7 +25,7 @@ struct ContentView: View {
 
             if isRawEditing {
                 RawEditorView(text: $rawDraft)
-                    .transition(.move(edge: .bottom))
+                    .transition(.move(edge: .trailing))
                     .zIndex(1)
             }
         }
