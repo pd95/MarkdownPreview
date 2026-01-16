@@ -102,6 +102,9 @@ pre {
     border: 1px solid var(--line-light);
     border-radius: 6px;
     opacity: .25;
+    transform: translateZ(0);
+    transform-origin: center;
+    transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
 .copy-btn:focus-visible {
@@ -122,6 +125,49 @@ pre {
     opacity: 1;
     background: var(--success-lime);
     color: var(--text-dark);
+    transform: scale(1.08);
+    animation: copy-pop 180ms ease-out;
+}
+
+@keyframes copy-pop {
+    0% {
+        transform: scale(1);
+    }
+    60% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1.08);
+    }
+}
+
+@media (pointer: coarse) {
+    .copy-btn.is-copied {
+        transform: scale(1.18);
+        box-shadow: 0 0 0 4px rgba(86, 187, 106, 0.35);
+        animation: copy-pop-coarse 220ms ease-out;
+    }
+}
+
+@keyframes copy-pop-coarse {
+    0% {
+        transform: scale(1);
+    }
+    60% {
+        transform: scale(1.22);
+    }
+    100% {
+        transform: scale(1.18);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .copy-btn {
+        transition: none;
+    }
+    .copy-btn.is-copied {
+        animation: none;
+    }
 }
 
 /* dark‑mode tweaks */
