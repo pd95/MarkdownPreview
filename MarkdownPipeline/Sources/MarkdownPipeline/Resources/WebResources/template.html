@@ -4,6 +4,61 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {{STYLES}}
+        <script>
+            const copyImage = '\
+<svg width="25px" height="25px" viewBox="0 0 25 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">\
+    <g transform="translate(0.1699, 0.9893)" fill="currentColor">\
+        <path d="M14.3613667,7.72429 C14.3613667,8.40137667 14.7519667,8.78549 15.4290333,8.78549 L19.0293,8.78549 L19.0293,14.9638833 C19.0293,16.3180167 18.3587667,17.00815 17.0111,17.00815 L16.7637,17.00815 L16.7637,13.06935 C16.7702333,12.1318167 16.4837667,11.38315 15.8847667,10.77115 L12.4082333,7.22949667 C11.7441667,6.54590333 11.0215067,6.23991667 10.00588,6.23991667 L8.87306667,6.23991667 L8.87306667,5.86882333 C8.87306667,4.59278333 9.55015333,3.87663667 10.8913,3.87663667 L14.3613667,3.87663667 L14.3613667,7.72429 Z M15.7936333,4.54721 L18.5475667,7.35319667 C18.7819,7.58106333 18.9186333,7.76335667 18.9577,7.97169 L15.5527667,7.97169 C15.2923667,7.97169 15.1881667,7.86101 15.1881667,7.59408333 L15.1816333,4.14356333 C15.3835,4.16960333 15.5723,4.31283 15.7936333,4.54721 Z"></path>\
+        <path d="M11.3209867,12.1774167 L15.7611,12.1774167 C15.6895,11.9234833 15.5397667,11.68915 15.2533,11.3896833 L11.7767,7.84799 C11.4837467,7.55502333 11.2363533,7.35971 10.9889533,7.28809667 L10.9889533,11.8454167 C10.9889533,12.06675 11.0996333,12.1774167 11.3209867,12.1774167 Z M7.73374667,20.2568167 L13.8535667,20.2568167 C15.2011667,20.2568167 15.8717667,19.56675 15.8717667,18.21255 L15.8717667,13.06935 L11.3274933,13.06935 C10.4876533,13.06935 10.0970267,12.6722167 10.0970267,11.8388833 L10.0970267,7.12533667 L7.73374667,7.12533667 C6.3926,7.12533667 5.71551333,7.80893 5.71551333,9.16960333 L5.71551333,18.21255 C5.71551333,19.5732833 6.3926,20.2568167 7.73374667,20.2568167 Z"></path>\
+    </g>\
+</svg>\
+';
+            const checkImage = '\
+<svg width="25px" height="25px" viewBox="0 0 25 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">\
+<g transform="translate(0.1699, 0.9593)" fill="currentColor">\
+<rect opacity="0" x="0" y="0" width="24" height="24"></rect>\
+<path d="M20.8086,6.03809 L20.8086,17.97165 C20.8086,19.98345 19.793,20.98925 17.7422,20.98925 L5.89651,20.98925 C3.85549,20.98925 2.8301,19.98345 2.8301,17.97165 L2.8301,6.03809 C2.8301,4.02637 3.85549,3.01075 5.89651,3.01075 L17.7422,3.01075 C19.793,3.01075 20.8086,4.02637 20.8086,6.03809 Z M14.8613,8.11817 L10.69143,14.81735 L8.70901,12.2588 C8.46487,11.93653 8.25002,11.84864 7.97658,11.84864 C7.52737,11.84864 7.18557,12.20997 7.18557,12.64942 C7.18557,12.87403 7.27346,13.08885 7.41994,13.28415 L9.87112,16.29195 C10.12502,16.63375 10.39846,16.77055 10.73049,16.77055 C11.06252,16.77055 11.34572,16.61425 11.5508,16.29195 L16.1406,9.06544 C16.2676,8.86036 16.3848,8.63575 16.3848,8.42091 C16.3848,7.96192 15.9844,7.66895 15.5645,7.66895 C15.3008,7.66895 15.0469,7.8252 14.8613,8.11817 Z"></path>\
+</g>\
+</svg>\
+';
+            const copyLabelHTML = '<span class="sr-only" aria-live="polite" aria-atomic="true">Copy code</span>';
+            const copiedLabelHTML = '<span class="sr-only" aria-live="polite" aria-atomic="true">Copied</span>';
+
+            const setButtonLabel = (button, isCopied) => {
+                button.innerHTML = (isCopied ? checkImage : copyImage) + (isCopied ? copiedLabelHTML : copyLabelHTML);
+            };
+
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('pre > code').forEach(code => {
+                    const pre = code.parentElement;
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'code-block';
+
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'copy-btn';
+                    button.title = 'Copy code';
+                    button.setAttribute('aria-label', 'Copy code');
+                    setButtonLabel(button, false);
+
+                    pre.parentNode.insertBefore(wrapper, pre);
+                    wrapper.appendChild(button);
+                    wrapper.appendChild(pre);
+                });
+            });
+
+            document.addEventListener('click', e => {
+                const button = e.target.closest('.copy-btn');
+                if (!button) {
+                    return;
+                }
+                const code = button.closest('.code-block').querySelector('code').innerText;
+                navigator.clipboard.writeText(code).then(() => {
+                    setButtonLabel(button, true);
+                    setTimeout(() => { setButtonLabel(button, false); }, 3000);
+                });
+            });
+        </script>
         <title>{{FILENAME}}</title>
     </head>
     <body>
