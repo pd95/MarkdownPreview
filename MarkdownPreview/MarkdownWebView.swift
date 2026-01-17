@@ -180,7 +180,43 @@ struct MarkdownWebView: PlatformViewRepresentable {
 #endif
         }
 
+        private func openExternalURL(_ url: URL) {
+#if os(macOS)
+            NSWorkspace.shared.open(url)
+#else
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+#endif
+        }
+
+        private func urlWithoutFragment(_ url: URL) -> URL? {
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.fragment = nil
+            return components?.url
+        }
+
+        private func isSameDocumentAnchor(_ url: URL, in webView: WKWebView) -> Bool {
+            guard url.fragment != nil, let currentURL = webView.url else { return false }
+            return urlWithoutFragment(url) == urlWithoutFragment(currentURL)
+        }
+
         // WKNavigationDelegate
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard navigationAction.navigationType == .linkActivated,
+                  let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+
+            if isSameDocumentAnchor(url, in: webView) {
+                decisionHandler(.allow)
+                return
+            }
+
+            openExternalURL(url)
+            decisionHandler(.cancel)
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isPageReady = true
 
