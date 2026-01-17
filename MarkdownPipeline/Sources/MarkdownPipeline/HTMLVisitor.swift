@@ -120,7 +120,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitImage(_ image: Image) -> String {
-        let source = sanitizedURL(image.source, fallback: "").encodedHTMLAttribute()
+        let source = sanitizedImageURL(image.source, fallback: "").encodedHTMLAttribute()
         var result = "<img src=\"\(source)\""
 
         if image.isEmpty == false {
@@ -337,6 +337,44 @@ struct HTMLVisitor: MarkupVisitor {
         }
 
         return raw
+    }
+
+    private func sanitizedImageURL(_ raw: String?, fallback: String) -> String {
+        guard let raw, raw.isEmpty == false else {
+            return fallback
+        }
+
+        if raw.lowercased().hasPrefix("data:") {
+            return isAllowedImageDataURI(raw) ? raw : fallback
+        }
+
+        return sanitizedURL(raw, fallback: fallback)
+    }
+
+    private func isAllowedImageDataURI(_ raw: String) -> Bool {
+        let lowercased = raw.lowercased()
+        guard lowercased.hasPrefix("data:image/") else {
+            return false
+        }
+
+        let allowedTypes = [
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp"
+        ]
+
+        let headerEnd = lowercased.firstIndex(of: ",")
+        guard let headerEnd else {
+            return false
+        }
+
+        let header = String(lowercased[..<headerEnd])
+        guard header.contains(";base64") else {
+            return false
+        }
+
+        return allowedTypes.contains { header.hasPrefix("data:\($0)") }
     }
 
     private func urlScheme(from raw: String) -> String? {
