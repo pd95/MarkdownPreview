@@ -70,6 +70,24 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("alt=\"Alt text\""))
     }
 
+    @Test func rendersEmbeddedBase64Images() throws {
+        let input = "![Alt](data:image/png;base64,aGVsbG8=)"
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+        #expect(document.html.contains("src=\"data:image/png;base64,aGVsbG8=\""))
+    }
+
+    @Test func filtersEmbeddedImagesWithDisallowedTypesOrEncoding() throws {
+        let input = """
+        ![Svg](data:image/svg+xml;base64,PHN2Zy8+)
+        ![Plain](data:image/png,hello)
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+        #expect(document.html.contains("<img src=\"data:image/svg+xml") == false)
+        #expect(document.html.contains("<img src=\"data:image/png,hello\"") == false)
+    }
+
     @Test func rendersTables() throws {
         let input = """
         | A | B |
