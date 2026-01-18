@@ -1,3 +1,4 @@
+import Foundation
 import Markdown
 
 extension String {
@@ -25,6 +26,7 @@ struct HTMLVisitor: MarkupVisitor {
     var currentColumnIndex = 0
     var codeBlockIndex = 0
     var codeBlockHighlights: [Int: CodeHighlightResult]
+    var headingIDCounts: [String: Int] = [:]
 
     static let disallowedRawHTMLTags = [
         "title",
@@ -154,7 +156,8 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitHeading(_ heading: Heading) -> String {
-        var result = "<h\(heading.level)>"
+        let identifier = uniqueHeadingID(for: heading)
+        var result = "<h\(heading.level) id=\"\(identifier.encodedHTMLAttribute())\">"
         for child in heading.children {
             result += visit(child)
         }
@@ -392,5 +395,37 @@ struct HTMLVisitor: MarkupVisitor {
         }
 
         return nil
+    }
+
+    private mutating func uniqueHeadingID(for heading: Heading) -> String {
+        let base = slugifiedHeadingID(from: heading.plainText)
+        let count = headingIDCounts[base, default: 0]
+        let identifier = count == 0 ? base : "\(base)-\(count)"
+        headingIDCounts[base] = count + 1
+        return identifier
+    }
+
+    private func slugifiedHeadingID(from text: String) -> String {
+        let lowercase = text.lowercased()
+        var slug = ""
+        var needsDash = false
+
+        for scalar in lowercase.unicodeScalars {
+            if scalar.isASCII, CharacterSet.alphanumerics.contains(scalar) {
+                if needsDash && slug.isEmpty == false {
+                    slug.append("-")
+                }
+                needsDash = false
+                slug.append(Character(scalar))
+            } else {
+                needsDash = true
+            }
+        }
+
+        if slug.isEmpty {
+            return "section"
+        }
+
+        return slug
     }
 }

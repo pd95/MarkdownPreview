@@ -12,7 +12,7 @@ struct MarkdownPipelineFixtureTests {
         let document = try pipeline.render(input: .data(data), context: context)
         let html = document.html
 
-        #expect(html.contains("<h1>Sample Heading</h1>"))
+        #expect(html.contains("<h1 id=\"sample-heading\">Sample Heading</h1>"))
         #expect(html.contains("<strong>bold</strong>"))
         #expect(html.contains("<em>italic</em>"))
         #expect(html.contains("<del>strikethrough</del>"))
@@ -40,7 +40,7 @@ struct MarkdownPipelineFixtureTests {
         let pipeline = MarkdownPipeline()
         let context = PipelineContext(enableCodeHighlighting: false)
         let document = try pipeline.render(input: .file(url), context: context)
-        #expect(document.html.contains("<h1>Sample Heading</h1>"))
+        #expect(document.html.contains("<h1 id=\"sample-heading\">Sample Heading</h1>"))
     }
 
     private func fixtureURL(named name: String) throws -> URL {

@@ -25,8 +25,21 @@ struct MarkdownPipelineHTMLRenderingTests {
         """
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
-        #expect(document.html.contains("<h1>Title</h1>"))
+        #expect(document.html.contains("<h1 id=\"title\">Title</h1>"))
         #expect(document.html.contains("<strong>bold</strong>"))
+    }
+
+    @Test func rendersHeadingAnchorsWithDeduping() throws {
+        let input = """
+        # Hello World
+        ## Hello World
+        # Hello, World!
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+        #expect(document.html.contains("<h1 id=\"hello-world\">Hello World</h1>"))
+        #expect(document.html.contains("<h2 id=\"hello-world-1\">Hello World</h2>"))
+        #expect(document.html.contains("<h1 id=\"hello-world-2\">Hello, World!</h1>"))
     }
 
     @Test func rendersBlockQuoteAndRule() throws {
