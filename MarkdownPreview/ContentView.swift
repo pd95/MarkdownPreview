@@ -12,6 +12,7 @@ struct ContentView: View {
     @Binding var document: MarkdownDocument
     @State private var isPrintRequested = false
     @State private var isRawEditing = false
+    @State private var showFind = false
     @State private var rawDraft = ""
 
     var body: some View {
@@ -24,7 +25,7 @@ struct ContentView: View {
             .zIndex(0)
 
             if isRawEditing {
-                RawEditorView(text: $rawDraft)
+                RawEditorView(text: $rawDraft, showFind: $showFind)
                     .transition(.move(edge: .trailing))
                     .zIndex(1)
             }
@@ -46,6 +47,18 @@ struct ContentView: View {
 #endif
 
                 ToolbarItem(placement: .primaryAction) {
+                    Toggle(isOn: $showFind) {
+                        Label("Find", systemImage: "magnifyingglass")
+                    }
+                    .keyboardShortcut("f")
+                }
+
+#if os(macOS)
+                if #available(macOS 26.0, *) {
+                    ToolbarSpacer()
+                }
+#endif
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Update", systemImage: "checkmark") {
                         updateDocument(with: rawDraft)
                         isRawEditing = false
@@ -62,6 +75,7 @@ struct ContentView: View {
                     }
                     .keyboardShortcut("p")
                 }
+
                 if #available(macOS 26.0, *) {
                     ToolbarSpacer()
                 }
