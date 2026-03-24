@@ -9,12 +9,21 @@ import SwiftUI
 
 @main
 struct MarkdownPreviewApp: App {
+#if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+#endif
     @FocusedValue(\.printAction) private var printAction
     @FocusedValue(\.pageSetupAction) private var pageSetupAction
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(document: file.$document)
+#if os(macOS)
+                .onAppear() {
+                    // Make sure the app stops after the last window has been closed
+                    appDelegate.exitAfterLastWindow = true
+                }
+#endif
         }
         .defaultSize(.defaultWindowSize)
 #if os(macOS)
