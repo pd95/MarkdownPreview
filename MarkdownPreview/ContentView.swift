@@ -14,11 +14,17 @@ struct ContentView: View {
     @State private var isRawEditing = false
     @State private var showFind = false
     @State private var rawDraft = ""
+    @State private var renderedHTML = Self.renderFailureHTML
+
+    init(document: Binding<MarkdownDocument>) {
+        self._document = document
+        self._renderedHTML = State(initialValue: Self.renderHTML(for: document.wrappedValue))
+    }
 
     var body: some View {
         ZStack {
             MarkdownWebView(
-                html: renderHTML(),
+                html: renderedHTML,
                 printRequested: $isPrintRequested
             )
             .allowsHitTesting(!isRawEditing)
@@ -91,6 +97,15 @@ struct ContentView: View {
                 }
             }
         }
+        .onAppear {
+            refreshRenderedHTML()
+        }
+        .onChange(of: document.text) { _ in
+            refreshRenderedHTML()
+        }
+        .onChange(of: document.filename ?? "") { _ in
+            refreshRenderedHTML()
+        }
 #if os(macOS)
         .focusedSceneValue(\.printAction, PrintAction {
             isPrintRequested = true
@@ -108,13 +123,17 @@ struct ContentView: View {
 #endif
     }
 
-    private func renderHTML() -> String {
+    private func refreshRenderedHTML() {
+        renderedHTML = Self.renderHTML(for: document)
+    }
+
+    private static func renderHTML(for document: MarkdownDocument) -> String {
         let pipeline = MarkdownPipeline.defaultHTML()
         let context = PipelineContext(title: document.filename)
         if let document = try? pipeline.renderHTML(from: .string(document.text), context: context) {
             return document.html
         }
-        return "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"
+        return Self.renderFailureHTML
     }
 
     private func rawString() -> String {
@@ -126,6 +145,8 @@ struct ContentView: View {
             document.text = text
         }
     }
+
+    private static let renderFailureHTML = "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"
 }
 
 #Preview {
