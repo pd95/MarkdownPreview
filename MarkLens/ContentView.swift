@@ -166,12 +166,12 @@ struct ContentView: View {
             isPresented: $isPreviewFindPresented,
             submit: findNext
         )
-        .onChange(of: isPreviewFindPresented) { _ in
+        .onChange(of: isPreviewFindPresented) {
             if isPreviewFindPresented == false {
                 previewFindText = ""
             }
         }
-        .onChange(of: isRawEditing) { _ in
+        .onChange(of: isRawEditing) {
             if isRawEditing {
                 isPreviewFindPresented = false
             }
