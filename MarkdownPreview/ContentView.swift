@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import MarkdownPipeline
 
 struct ContentView: View {
     @ObservedObject var document: MarkdownDocument
@@ -14,17 +13,15 @@ struct ContentView: View {
     @State private var isRawEditing = false
     @State private var showFind = false
     @State private var rawDraft = ""
-    @State private var renderedHTML = Self.renderFailureHTML
 
     init(document: MarkdownDocument) {
         self.document = document
-        self._renderedHTML = State(initialValue: Self.renderHTML(for: document))
     }
 
     var body: some View {
         ZStack {
             MarkdownWebView(
-                html: renderedHTML,
+                html: document.renderedHTML,
                 printRequested: $isPrintRequested
             )
             .allowsHitTesting(!isRawEditing)
@@ -66,7 +63,7 @@ struct ContentView: View {
 #endif
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Update", systemImage: "checkmark") {
-                        updateDocument(with: rawDraft)
+                        document.updateText(rawDraft)
                         isRawEditing = false
                     }
                     .keyboardShortcut("s")
@@ -97,15 +94,6 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            refreshRenderedHTML()
-        }
-        .onChange(of: document.text) { _ in
-            refreshRenderedHTML()
-        }
-        .onChange(of: document.filename ?? "") { _ in
-            refreshRenderedHTML()
-        }
 #if os(macOS)
         .focusedSceneValue(\.printAction, PrintAction {
             isPrintRequested = true
@@ -123,30 +111,9 @@ struct ContentView: View {
 #endif
     }
 
-    private func refreshRenderedHTML() {
-        renderedHTML = Self.renderHTML(for: document)
-    }
-
-    private static func renderHTML(for document: MarkdownDocument) -> String {
-        let pipeline = MarkdownPipeline.defaultHTML()
-        let context = PipelineContext(title: document.filename)
-        if let document = try? pipeline.renderHTML(from: .string(document.text), context: context) {
-            return document.html
-        }
-        return Self.renderFailureHTML
-    }
-
     private func rawString() -> String {
         document.text
     }
-
-    private func updateDocument(with text: String) {
-        if document.text != text {
-            document.text = text
-        }
-    }
-
-    private static let renderFailureHTML = "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"
 }
 
 #Preview {
