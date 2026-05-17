@@ -23,7 +23,6 @@ fi
 
 TAG_NAME="${CI_TAG#refs/tags/}"
 TAG_VERSION="${TAG_NAME#v}"
-TAG_VERSION="${TAG_VERSION#v}"
 
 if [[ "$TAG_VERSION" == *-test* ]]; then
     echo "Test tag '$TAG_NAME'; skipping GitHub Release upload."
@@ -49,8 +48,26 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 ASSET_NAME="${APP_NAME}-${TAG_NAME}.zip"
 ASSET_PATH="$WORK_DIR/$ASSET_NAME"
 
-echo "Packaging $ARTIFACT_PATH as $ASSET_NAME"
-ditto -c -k --keepParent "$ARTIFACT_PATH" "$ASSET_PATH"
+APP_PATH="$ARTIFACT_PATH"
+if [[ -d "$ARTIFACT_PATH" && "$ARTIFACT_PATH" != *.app ]]; then
+    APP_PATH="$ARTIFACT_PATH/$APP_NAME.app"
+fi
+
+if [[ ! -d "$APP_PATH" || "$APP_PATH" != *.app ]]; then
+    echo "error: Could not find $APP_NAME.app in CI_DEVELOPER_ID_SIGNED_APP_PATH."
+    echo "CI_DEVELOPER_ID_SIGNED_APP_PATH=$ARTIFACT_PATH"
+    exit 1
+fi
+
+echo "Packaging $APP_PATH as $ASSET_NAME"
+if command -v ditto >/dev/null 2>&1; then
+    ditto -c -k --keepParent "$APP_PATH" "$ASSET_PATH"
+elif command -v zip >/dev/null 2>&1; then
+    (cd "$(dirname "$APP_PATH")" && zip -qry "$ASSET_PATH" "$(basename "$APP_PATH")")
+else
+    echo "error: Could not find ditto or zip to create $ASSET_NAME"
+    exit 1
+fi
 
 IS_PRERELEASE=false
 if [[ "$TAG_VERSION" == *-* ]]; then
