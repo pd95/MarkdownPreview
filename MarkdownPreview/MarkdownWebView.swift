@@ -52,6 +52,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
 #if os(macOS)
         webView.setValue(false, forKey: "drawsBackground")
+        webView.setAccessibilityIdentifier("previewWebView")
+#else
+        webView.accessibilityIdentifier = "previewWebView"
 #endif
         webView.allowsLinkPreview = false
         webView.navigationDelegate = context.coordinator

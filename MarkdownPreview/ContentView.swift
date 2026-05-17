@@ -46,6 +46,7 @@ struct ContentView: View {
                     .zIndex(1)
             }
         }
+        .accessibilityIdentifier("contentView")
 #if os(macOS)
         .safeAreaInset(edge: .top, spacing: 0) {
             if isPreviewFindPresented && isRawEditing == false {
@@ -118,6 +119,7 @@ struct ContentView: View {
                     } label: {
                         Label("Find", systemImage: "magnifyingglass")
                     }
+                    .accessibilityIdentifier("previewFindButton")
                     .keyboardShortcut("f")
                 }
 
@@ -133,6 +135,7 @@ struct ContentView: View {
                         } label: {
                             Label("Previous", systemImage: "chevron.up")
                         }
+                        .accessibilityIdentifier("previewFindPreviousButton")
                         .disabled(previewFindMatchCount == 0)
 
                         Button {
@@ -140,6 +143,7 @@ struct ContentView: View {
                         } label: {
                             Label("Next", systemImage: "chevron.down")
                         }
+                        .accessibilityIdentifier("previewFindNextButton")
                         .disabled(previewFindMatchCount == 0)
                     }
                 }
@@ -274,14 +278,17 @@ private struct PreviewFindBar: View {
             Button(action: previous) {
                 Label("Previous", systemImage: "chevron.left")
             }
+            .accessibilityIdentifier("previewFindPreviousButton")
             .disabled(!canNavigate)
 
             Button(action: next) {
                 Label("Next", systemImage: "chevron.right")
             }
+            .accessibilityIdentifier("previewFindNextButton")
             .disabled(!canNavigate)
 
             Button("Done", action: close)
+                .accessibilityIdentifier("previewFindDoneButton")
                 .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, 14)
@@ -304,6 +311,7 @@ private struct PreviewFindBar: View {
             TextField("Find", text: $text)
                 .textFieldStyle(.plain)
                 .focused($isFocused)
+                .accessibilityIdentifier("previewFindField")
                 .onSubmit(next)
 
             if statusText.isEmpty == false {

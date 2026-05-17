@@ -19,7 +19,7 @@ struct MarkdownPreviewApp: App {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(document: file.document)
 #if os(macOS)
-                .onAppear() {
+                .onAppear {
                     // Make sure the app stops after the last window has been closed
                     appDelegate.exitAfterLastWindow = true
                 }
