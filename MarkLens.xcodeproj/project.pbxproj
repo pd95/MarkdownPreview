@@ -458,7 +458,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkLens.QuickLookPreview.macOS;
+				PRODUCT_BUNDLE_IDENTIFIER = com.doapp.MarkLens.QuickLookPreview.macOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -499,7 +499,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkLens.QuickLookPreview.macOS;
+				PRODUCT_BUNDLE_IDENTIFIER = com.doapp.MarkLens.QuickLookPreview.macOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -552,7 +552,7 @@
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkLens;
+				PRODUCT_BUNDLE_IDENTIFIER = com.doapp.MarkLens;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -603,7 +603,7 @@
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.MarkLens;
+				PRODUCT_BUNDLE_IDENTIFIER = com.doapp.MarkLens;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
