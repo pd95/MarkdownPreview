@@ -1,8 +1,10 @@
 # Changelog
 
-## 1.0.2
+## 1.1.0
 
-- Added automated Developer ID notarized release builds.
+- Renamed the app from MarkdownPreview to MarkLens.
+- Added automated Xcode Cloud release builds.
+- Added Developer ID notarization for direct downloads.
 - Added GitHub Release uploads for release candidate and final tags.
 - Added release tag and commit metadata to the About panel.
 
@@ -19,4 +21,8 @@
 
 ## 1.0.4
 
-- Published an earlier macOS test build of MarkdownPreview.
+- Added printing and page setup support, including macOS PDF generation through the print workflow.
+- Added syntax-highlighted Markdown rendering through the shared Markdown pipeline.
+- Added copy buttons for rendered code blocks.
+- Added raw Markdown editing inside the app.
+- Improved Quick Look preview rendering and shared app/extension resources.
