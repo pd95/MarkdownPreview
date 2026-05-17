@@ -154,6 +154,7 @@ with open(output_path, "w", encoding="utf-8") as handle:
             "body": body,
             "draft": False,
             "prerelease": is_prerelease,
+            "generate_release_notes": True,
             "make_latest": "false" if is_prerelease else "true",
         },
         handle,
