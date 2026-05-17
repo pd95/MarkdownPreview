@@ -11,7 +11,7 @@ View Markdown documents in iOS and macOS (plus a Quick Look extension for fast p
 
 ## Requirements
 - Xcode 26
-- macOS 15.6 or an iOS 18.6 device
+- macOS 15.6 or an iOS 17.6 device
 
 ## Build
 Open the project:

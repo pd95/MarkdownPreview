@@ -58,6 +58,7 @@
 
 /* Begin PBXFileReference section */
 		17208FE62F09A33F000638BE /* QuickLook.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLook.framework; path = System/Library/Frameworks/QuickLook.framework; sourceTree = SDKROOT; };
+		172772F52FBA65D9003F7E82 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
 		17421AFF2F09491800C7EE6C /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		17421B002F0950BC00C7EE6C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		17421B012F0950BC00C7EE6C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -183,6 +184,7 @@
 			isa = PBXGroup;
 			children = (
 				17421B012F0950BC00C7EE6C /* README.md */,
+				172772F52FBA65D9003F7E82 /* CHANGELOG.md */,
 				17421AFF2F09491800C7EE6C /* AGENTS.md */,
 				17421B002F0950BC00C7EE6C /* LICENSE */,
 				17FBAA822F09EBDF0023F755 /* THIRD_PARTY_NOTICES */,
