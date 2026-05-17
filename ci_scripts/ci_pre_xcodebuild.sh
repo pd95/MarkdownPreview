@@ -1,7 +1,9 @@
 #!/bin/zsh
 set -euo pipefail
 
-PROJECT_FILE="${PROJECT_FILE:-MarkLens.xcodeproj/project.pbxproj}"
+SCRIPT_DIR="${0:A:h}"
+REPOSITORY_ROOT="${SCRIPT_DIR:h}"
+PROJECT_FILE="${PROJECT_FILE:-$REPOSITORY_ROOT/MarkLens.xcodeproj/project.pbxproj}"
 
 if [[ -z "${CI_TAG:-}" ]]; then
     echo "No CI_TAG set; leaving MARKETING_VERSION and CURRENT_PROJECT_VERSION unchanged."
