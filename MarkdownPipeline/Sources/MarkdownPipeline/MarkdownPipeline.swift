@@ -22,7 +22,8 @@ public struct MarkdownPipeline {
         let extraction = FrontMatterExtractor().extract(from: markdown)
         let mergedContext = merge(context: context, frontMatter: extraction.frontMatter)
 
-        let document = SwiftMarkdownParser().parse(markdown: extraction.bodyMarkdown)
+        let normalizedMarkdown = MarkdownFenceNormalizer().normalize(extraction.bodyMarkdown)
+        let document = SwiftMarkdownParser().parse(markdown: normalizedMarkdown)
         let highlights: [Int: CodeHighlightResult]
         if mergedContext.enableCodeHighlighting {
             highlights = CodeBlockHighlighter(

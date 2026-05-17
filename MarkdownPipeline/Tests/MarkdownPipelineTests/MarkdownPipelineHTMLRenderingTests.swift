@@ -67,6 +67,50 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("class=\"hljs") == false)
     }
 
+    @Test func rendersFencedCodeInsideFencedCodeAsLiteralText() throws {
+        let input = """
+        ```markdown
+        ```swift
+        let value = 1
+        ```
+        ```
+        """
+        let pipeline = MarkdownPipeline()
+        let context = PipelineContext(enableCodeHighlighting: false)
+        let document = try pipeline.render(input: .string(input), context: context)
+        let preCount = document.html.components(separatedBy: "<pre>").count - 1
+
+        #expect(preCount == 1)
+        #expect(document.html.contains("<pre><code class=\"lang-markdown\">"))
+        #expect(document.html.contains("```swift"))
+        #expect(document.html.contains("let value = 1"))
+        #expect(document.html.contains("</code></pre>"))
+    }
+
+    @Test func rendersMarkdownCodeBlockContainingBashFenceAsLiteralText() throws {
+        let input = """
+        ```markdown
+        ## Validation
+
+        ```bash
+        go test ./...
+        go build ./...
+        ```
+
+        Done.
+        ```
+        """
+        let pipeline = MarkdownPipeline()
+        let context = PipelineContext(enableCodeHighlighting: false)
+        let document = try pipeline.render(input: .string(input), context: context)
+        let preCount = document.html.components(separatedBy: "<pre>").count - 1
+
+        #expect(preCount == 1)
+        #expect(document.html.contains("```bash"))
+        #expect(document.html.contains("go test ./..."))
+        #expect(document.html.contains("Done."))
+    }
+
     @Test func rendersInlineCodeAndLinks() throws {
         let input = "Use `code` and [link](https://example.com)."
         let pipeline = MarkdownPipeline()
