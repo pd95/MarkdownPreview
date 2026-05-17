@@ -19,7 +19,7 @@ enum BuildInfo {
     }
 
     static var displayVersion: String {
-        "\(marketingVersion) (\(buildNumber))"
+        marketingVersion
     }
 
     static var releaseDescription: String {
