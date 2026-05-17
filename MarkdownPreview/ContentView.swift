@@ -9,16 +9,16 @@ import SwiftUI
 import MarkdownPipeline
 
 struct ContentView: View {
-    @Binding var document: MarkdownDocument
+    @ObservedObject var document: MarkdownDocument
     @State private var isPrintRequested = false
     @State private var isRawEditing = false
     @State private var showFind = false
     @State private var rawDraft = ""
     @State private var renderedHTML = Self.renderFailureHTML
 
-    init(document: Binding<MarkdownDocument>) {
-        self._document = document
-        self._renderedHTML = State(initialValue: Self.renderHTML(for: document.wrappedValue))
+    init(document: MarkdownDocument) {
+        self.document = document
+        self._renderedHTML = State(initialValue: Self.renderHTML(for: document))
     }
 
     var body: some View {
@@ -150,5 +150,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(document: .constant(MarkdownDocument()))
+    ContentView(document: MarkdownDocument())
 }

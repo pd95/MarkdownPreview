@@ -17,7 +17,7 @@ struct MarkdownPreviewApp: App {
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
-            ContentView(document: file.$document)
+            ContentView(document: file.document)
 #if os(macOS)
                 .onAppear() {
                     // Make sure the app stops after the last window has been closed

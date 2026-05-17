@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 
-nonisolated struct MarkdownDocument: FileDocument {
-    var text: String
+final class MarkdownDocument: ReferenceFileDocument {
+    typealias Snapshot = String
+
+    @Published var text: String
     let filename: String?
 
     init(text: String = "") {
@@ -24,7 +27,7 @@ nonisolated struct MarkdownDocument: FileDocument {
         UTType.appMarkdown
     ]
 
-    init(configuration: ReadConfiguration) throws {
+    required init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents else {
             throw CocoaError(.fileReadCorruptFile)
         }
@@ -35,8 +38,12 @@ nonisolated struct MarkdownDocument: FileDocument {
         self.filename = configuration.file.preferredFilename
     }
 
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = text.data(using: .utf8) ?? Data()
+    func snapshot(contentType: UTType) throws -> String {
+        text
+    }
+
+    func fileWrapper(snapshot: String, configuration: WriteConfiguration) throws -> FileWrapper {
+        let data = snapshot.data(using: .utf8) ?? Data()
         return .init(regularFileWithContents: data)
     }
 }
