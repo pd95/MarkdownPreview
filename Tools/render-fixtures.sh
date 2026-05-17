@@ -26,8 +26,8 @@ fi
 
 if [ "$#" -eq 0 ]; then
     set -- \
-        "$ROOT/MarkdownPreviewUITests/Fixtures/sample.md" \
-        "$ROOT/MarkdownPreviewUITests/Fixtures/search-sample.md"
+        "$ROOT/MarkLensUITests/Fixtures/sample.md" \
+        "$ROOT/MarkLensUITests/Fixtures/search-sample.md"
 fi
 
 mkdir -p "$HTML_DIR" "$ROOT/tmp/screenshots"

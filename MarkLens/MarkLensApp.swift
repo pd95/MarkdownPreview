@@ -1,6 +1,6 @@
 //
-//  MarkdownPreviewApp.swift
-//  MarkdownPreview
+//  MarkLensApp.swift
+//  MarkLens
 //
 //  Created by Philipp on 02.01.2026.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct MarkdownPreviewApp: App {
+struct MarkLensApp: App {
 #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 #endif

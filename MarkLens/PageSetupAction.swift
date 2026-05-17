@@ -1,6 +1,6 @@
 //
 //  PageSetupAction.swift
-//  MarkdownPreview
+//  MarkLens
 //
 //  Created by Philipp on 04.01.2026.
 //

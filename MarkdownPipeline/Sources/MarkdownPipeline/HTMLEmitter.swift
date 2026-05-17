@@ -9,7 +9,7 @@ struct HTMLEmitter {
 
         template = template.replacingOccurrences(of: "{{STYLES}}", with: cssBlock)
 
-        let resolvedTitle = (title ?? "Markdown Preview").encodedHTMLEntities()
+        let resolvedTitle = (title ?? "MarkLens").encodedHTMLEntities()
         template = template
             .replacingOccurrences(of: "{{HTML}}", with: bodyHTML)
             .replacingOccurrences(of: "{{FILENAME}}", with: resolvedTitle)

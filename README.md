@@ -1,4 +1,4 @@
-# MarkdownPreview
+# MarkLens
 
 View Markdown documents in iOS and macOS (plus a Quick Look extension for fast previews in Finder!).
 
@@ -16,16 +16,16 @@ View Markdown documents in iOS and macOS (plus a Quick Look extension for fast p
 ## Build
 Open the project:
 ```sh
-open MarkdownPreview.xcodeproj
+open MarkLens.xcodeproj
 ```
 
 Build from the CLI:
 ```sh
-xcodebuild -project MarkdownPreview.xcodeproj -scheme MarkdownPreview -configuration Debug build
+xcodebuild -project MarkLens.xcodeproj -scheme MarkLens -configuration Debug build
 ```
 
 ## Project Layout
-- `MarkdownPreview/` app sources
+- `MarkLens/` app sources
 - `QuickLookPreview_macOS/` Quick Look extension
 - `Shared/` shared Swift code and web assets
 

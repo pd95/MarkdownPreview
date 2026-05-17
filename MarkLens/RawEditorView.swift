@@ -1,6 +1,6 @@
 //
 //  RawEditorView.swift
-//  MarkdownPreview
+//  MarkLens
 //
 //  Created by Philipp on 16.01.2026.
 //

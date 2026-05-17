@@ -19,7 +19,7 @@ By default, the script renders the UI-test markdown fixtures into `tmp/rendered/
 You can render specific markdown files by passing paths:
 
 ```bash
-Tools/render-fixtures.sh MarkdownPreviewUITests/Fixtures/search-sample.md
+Tools/render-fixtures.sh MarkLensUITests/Fixtures/search-sample.md
 ```
 
 The Playwright pass injects the bundled `highlight.min.js` before capturing screenshots, so Linux-rendered HTML gets browser-side syntax highlighting for visual inspection.

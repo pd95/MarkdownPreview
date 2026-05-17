@@ -1,6 +1,6 @@
 //
 //  DefaultSize.swift
-//  MarkdownPreview
+//  MarkLens
 //
 //  Created by Philipp on 03.01.2026.
 //

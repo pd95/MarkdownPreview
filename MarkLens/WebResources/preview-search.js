@@ -1,5 +1,5 @@
 (() => {
-    if (window.MarkdownPreviewSearch) {
+    if (window.MarkLensSearch) {
         return;
     }
 
@@ -390,7 +390,7 @@
         captureSelectionAnchor();
     });
 
-    window.MarkdownPreviewSearch = {
+    window.MarkLensSearch = {
         run(payload) {
             payload = payload || {};
             const command = payload.command || "search";

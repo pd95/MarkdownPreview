@@ -1,20 +1,20 @@
 //
-//  MarkdownPreviewUITests.swift
-//  MarkdownPreviewUITests
+//  MarkLensUITests.swift
+//  MarkLensUITests
 //
 //  Created by Philipp on 17.05.2026.
 //
 
 import XCTest
 
-final class MarkdownPreviewUITests: XCTestCase {
+final class MarkLensUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
     @MainActor
-    func testOpensSampleMarkdownPreview() throws {
+    func testOpensSampleMarkLens() throws {
         let preview = XCUIApplication().openDocument(named: "sample", fileExtension: "md")
         defer { preview.terminate() }
 
@@ -66,8 +66,8 @@ private extension XCUIApplication {
         fileExtension: String,
         file: StaticString = #file,
         line: UInt = #line
-    ) -> MarkdownPreviewAppHandle {
-        guard let fixtureURL = Bundle(for: MarkdownPreviewUITests.self)
+    ) -> MarkLensAppHandle {
+        guard let fixtureURL = Bundle(for: MarkLensUITests.self)
             .url(forResource: baseName, withExtension: fileExtension) else {
             XCTFail("Could not locate fixture \(baseName).\(fileExtension).", file: file, line: line)
             launch()
@@ -86,7 +86,7 @@ private extension XCUIApplication {
     }
 
     @MainActor
-    func previewHandle(documentTitle: String, file: StaticString = #file, line: UInt = #line) -> MarkdownPreviewAppHandle {
+    func previewHandle(documentTitle: String, file: StaticString = #file, line: UInt = #line) -> MarkLensAppHandle {
         let window = windows[documentTitle].firstMatch
         XCTAssertTrue(
             window.waitForExistence(timeout: 5),
@@ -109,12 +109,12 @@ private extension XCUIApplication {
             XCTFail("Expected rendered markdown web view to appear.", file: file, line: line)
         }
 
-        return MarkdownPreviewAppHandle(app: self, window: window, contentView: contentView)
+        return MarkLensAppHandle(app: self, window: window, contentView: contentView)
     }
 }
 
 @MainActor
-private struct MarkdownPreviewAppHandle {
+private struct MarkLensAppHandle {
     let app: XCUIApplication
     let window: XCUIElement
     let contentView: XCUIElement

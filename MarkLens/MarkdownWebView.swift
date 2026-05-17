@@ -198,7 +198,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 return
             }
 
-            webView.evaluateJavaScript("window.MarkdownPreviewSearch.run(\(jsonString));") { [weak self] result, _ in
+            webView.evaluateJavaScript("window.MarkLensSearch.run(\(jsonString));") { [weak self] result, _ in
                 guard let self, generation == self.searchGeneration else { return }
 
                 let dictionary = result as? [String: Any]
@@ -226,7 +226,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             guard let url = Bundle.main.url(forResource: "WebResources/preview-search", withExtension: "js"),
                   let script = try? String(contentsOf: url, encoding: .utf8) else {
                 assertionFailure("Missing preview-search.js resource")
-                return "window.MarkdownPreviewSearch = { run() { return { count: 0, index: 0 }; }, clear() { return { count: 0, index: 0 }; } };"
+                return "window.MarkLensSearch = { run() { return { count: 0, index: 0 }; }, clear() { return { count: 0, index: 0 }; } };"
             }
 
             return script
@@ -275,7 +275,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
 #else
             let printController = UIPrintInteractionController.shared
             let printInfo = UIPrintInfo.printInfo()
-            printInfo.jobName = "Markdown Preview"
+            printInfo.jobName = "MarkLens"
             printController.printInfo = printInfo
             printController.printFormatter = webView.viewPrintFormatter()
 

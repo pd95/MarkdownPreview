@@ -1,6 +1,6 @@
 //
 //  MarkdownDocument.swift
-//  MarkdownPreview
+//  MarkLens
 //
 //  Created by Philipp on 02.01.2026.
 //

@@ -1,16 +1,16 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `MarkdownPreview/` contains the main SwiftUI app target (document handling, views, and app entry point).
+- `MarkLens/` contains the main SwiftUI app target (document handling, views, and app entry point).
 - `QuickLookPreview/` hosts the Quick Look extension used for markdown previews.
 - `Shared/` holds shared Swift code (UTType helpers, app constants).
 - `Icon/` contains source icon assets and design files.
-- `MarkdownPreview.xcodeproj/` is the Xcode project workspace and build metadata.
+- `MarkLens.xcodeproj/` is the Xcode project workspace and build metadata.
 
 ## Build, Test, and Development Commands
-- `open MarkdownPreview.xcodeproj` to work in Xcode (recommended for running and debugging).
-- `xcodebuild -project MarkdownPreview.xcodeproj -scheme MarkdownPreview -configuration Debug build` builds the app from the CLI.
-- `xcodebuild -project MarkdownPreview.xcodeproj -scheme QuickLookPreview -configuration Debug build` builds the Quick Look extension.
+- `open MarkLens.xcodeproj` to work in Xcode (recommended for running and debugging).
+- `xcodebuild -project MarkLens.xcodeproj -scheme MarkLens -configuration Debug build` builds the app from the CLI.
+- `xcodebuild -project MarkLens.xcodeproj -scheme QuickLookPreview -configuration Debug build` builds the Quick Look extension.
 - There are currently no automated tests wired into the project.
 - If `xcodebuild` crashes during device discovery, reset simulator device sets:
   `for DEVICES_SET in playgrounds previews ib test default; do xcrun simctl --set $DEVICES_SET delete all; done`
