@@ -15,13 +15,15 @@ if [[ ! -f "$PROJECT_FILE" ]]; then
     exit 1
 fi
 
-VERSION="${CI_TAG#refs/tags/}"
-VERSION="${VERSION#v}"
+TAG_VERSION="${CI_TAG#refs/tags/}"
+TAG_VERSION="${TAG_VERSION#v}"
 
-if [[ ! "$VERSION" =~ '^[0-9]+(\.[0-9]+){1,2}([.-][A-Za-z0-9]+)?$' ]]; then
-    echo "error: CI_TAG '$CI_TAG' does not look like a release tag such as v1.0.0"
+if [[ ! "$TAG_VERSION" =~ '^[0-9]+(\.[0-9]+){1,2}(-[A-Za-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)*)?$' ]]; then
+    echo "error: CI_TAG '$CI_TAG' does not look like a release tag such as v1.0.0, v1.0.1-test, or v1.0.1-rc1"
     exit 1
 fi
+
+VERSION="${TAG_VERSION%%-*}"
 
 BUILD_NUMBER="${CI_BUILD_NUMBER:-}"
 if [[ -z "$BUILD_NUMBER" ]]; then
@@ -34,6 +36,9 @@ if [[ ! "$BUILD_NUMBER" =~ '^[0-9]+$' ]]; then
 fi
 
 echo "Setting MARKETING_VERSION to $VERSION from CI_TAG=$CI_TAG"
+if [[ "$TAG_VERSION" == *-* ]]; then
+    echo "Ignoring prerelease suffix for Apple's numeric MARKETING_VERSION."
+fi
 echo "Setting CURRENT_PROJECT_VERSION to $BUILD_NUMBER"
 
 perl -0pi -e "s/MARKETING_VERSION = [^;]+;/MARKETING_VERSION = $VERSION;/g" "$PROJECT_FILE"
