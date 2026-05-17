@@ -5,6 +5,9 @@ GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-pd95/MarkdownPreview}"
 GITHUB_API_URL="${GITHUB_API_URL:-https://api.github.com}"
 GITHUB_UPLOADS_URL="${GITHUB_UPLOADS_URL:-https://uploads.github.com}"
 APP_NAME="${APP_NAME:-MarkLens}"
+SCRIPT_DIR="${0:A:h}"
+REPOSITORY_ROOT="${SCRIPT_DIR:h}"
+CHANGELOG_FILE="${CHANGELOG_FILE:-$REPOSITORY_ROOT/CHANGELOG.md}"
 
 if [[ "${CI_XCODEBUILD_ACTION:-}" != "archive" ]]; then
     echo "Not an archive action; skipping GitHub Release upload."
@@ -23,6 +26,7 @@ fi
 
 TAG_NAME="${CI_TAG#refs/tags/}"
 TAG_VERSION="${TAG_NAME#v}"
+BASE_VERSION="${TAG_VERSION%%-*}"
 
 if [[ "$TAG_VERSION" == *-test* ]]; then
     echo "Test tag '$TAG_NAME'; skipping GitHub Release upload."
@@ -75,7 +79,45 @@ if [[ "$TAG_VERSION" == *-* ]]; then
 fi
 
 RELEASE_NAME="$APP_NAME $TAG_NAME"
-RELEASE_NOTES="Automated Xcode Cloud release for $TAG_NAME."
+RELEASE_NOTES=""
+if [[ -f "$CHANGELOG_FILE" ]]; then
+    RELEASE_NOTES="$(python3 - "$CHANGELOG_FILE" "$BASE_VERSION" <<'PY'
+import re
+import sys
+
+path, version = sys.argv[1:]
+heading = re.compile(r"^##\s+\[?" + re.escape(version) + r"\]?\s*$")
+next_heading = re.compile(r"^##\s+")
+
+with open(path, encoding="utf-8") as handle:
+    lines = handle.readlines()
+
+start = None
+for index, line in enumerate(lines):
+    if heading.match(line.strip()):
+        start = index + 1
+        break
+
+if start is None:
+    sys.exit(0)
+
+end = len(lines)
+for index in range(start, len(lines)):
+    if next_heading.match(lines[index].strip()):
+        end = index
+        break
+
+notes = "".join(lines[start:end]).strip()
+if notes:
+    print(notes)
+PY
+)"
+fi
+
+if [[ -z "$RELEASE_NOTES" ]]; then
+    RELEASE_NOTES="Automated Xcode Cloud release for $TAG_NAME."
+fi
+
 if [[ -n "${CI_BUILD_URL:-}" ]]; then
     RELEASE_NOTES="$RELEASE_NOTES"$'\n\n'"Xcode Cloud build: $CI_BUILD_URL"
 fi
