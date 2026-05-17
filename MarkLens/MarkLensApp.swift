@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 @main
 struct MarkLensApp: App {
@@ -42,7 +45,30 @@ struct MarkLensApp: App {
                 .keyboardShortcut("P", modifiers: [.command, .shift])
                 .disabled(pageSetupAction == nil)
             }
+            CommandGroup(replacing: .appInfo) {
+                Button("About MarkLens") {
+                    showAboutPanel()
+                }
+            }
         }
 #endif
     }
+
+#if os(macOS)
+    private func showAboutPanel() {
+        let credits = NSAttributedString(
+            string: BuildInfo.releaseDescription,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        )
+
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [
+            .applicationName: "MarkLens",
+            .applicationVersion: BuildInfo.displayVersion,
+            .credits: credits,
+        ])
+    }
+#endif
 }
