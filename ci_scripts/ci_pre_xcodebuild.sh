@@ -1,0 +1,40 @@
+#!/bin/zsh
+set -euo pipefail
+
+PROJECT_FILE="${PROJECT_FILE:-MarkLens.xcodeproj/project.pbxproj}"
+
+if [[ -z "${CI_TAG:-}" ]]; then
+    echo "No CI_TAG set; leaving MARKETING_VERSION and CURRENT_PROJECT_VERSION unchanged."
+    exit 0
+fi
+
+if [[ ! -f "$PROJECT_FILE" ]]; then
+    echo "error: Expected project file at $PROJECT_FILE"
+    exit 1
+fi
+
+VERSION="${CI_TAG#refs/tags/}"
+VERSION="${VERSION#v}"
+
+if [[ ! "$VERSION" =~ '^[0-9]+(\.[0-9]+){1,2}([.-][A-Za-z0-9]+)?$' ]]; then
+    echo "error: CI_TAG '$CI_TAG' does not look like a release tag such as v1.0.0"
+    exit 1
+fi
+
+BUILD_NUMBER="${CI_BUILD_NUMBER:-}"
+if [[ -z "$BUILD_NUMBER" ]]; then
+    BUILD_NUMBER="$(git rev-list --count HEAD)"
+fi
+
+if [[ ! "$BUILD_NUMBER" =~ '^[0-9]+$' ]]; then
+    echo "error: Build number '$BUILD_NUMBER' is not numeric"
+    exit 1
+fi
+
+echo "Setting MARKETING_VERSION to $VERSION from CI_TAG=$CI_TAG"
+echo "Setting CURRENT_PROJECT_VERSION to $BUILD_NUMBER"
+
+perl -0pi -e "s/MARKETING_VERSION = [^;]+;/MARKETING_VERSION = $VERSION;/g" "$PROJECT_FILE"
+perl -0pi -e "s/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" "$PROJECT_FILE"
+
+echo "Version settings updated for Xcode Cloud build."
