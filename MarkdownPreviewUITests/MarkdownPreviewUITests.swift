@@ -16,6 +16,7 @@ final class MarkdownPreviewUITests: XCTestCase {
     @MainActor
     func testOpensSampleMarkdownPreview() throws {
         let preview = XCUIApplication().openDocument(named: "sample", fileExtension: "md")
+        defer { preview.terminate() }
 
         capture(preview.window, name: "sample-md-preview")
     }
@@ -23,6 +24,7 @@ final class MarkdownPreviewUITests: XCTestCase {
     @MainActor
     func testOpenFileRecorded() throws {
         let preview = XCUIApplication().openDocument(named: "search-sample", fileExtension: "md")
+        defer { preview.terminate() }
 
         capture(preview.window, name: "search-sample-opened")
 
@@ -156,5 +158,9 @@ private struct MarkdownPreviewAppHandle {
         XCTAssertTrue(button.waitForExistence(timeout: 2), "Expected done search button.")
         button.click()
         XCTAssertFalse(findField.exists, "Expected preview find field to close.")
+    }
+
+    func terminate() {
+        app.terminate()
     }
 }
