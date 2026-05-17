@@ -26,6 +26,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		178AADDD2FB9D5BB0086D069 /* Copy WebResources Files */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = WebResources;
+			dstSubfolderSpec = 7;
+			files = (
+			);
+			name = "Copy WebResources Files";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		17CD185B2F08337200899189 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +80,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				"WebResources/preview-search.js",
 			);
 			platformFiltersByRelativePath = {
 				AppDelegate.swift = (macos, );
@@ -77,6 +88,16 @@
 			target = 17FBBD7C2F0831EC00BEAA3E /* MarkdownPreview */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		178AADDE2FB9D5D20086D069 /* Exceptions for "MarkdownPreview" folder in "Copy WebResources Files" phase from "MarkdownPreview" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 178AADDD2FB9D5BB0086D069 /* Copy WebResources Files */;
+			membershipExceptions = (
+				"WebResources/preview-search.js",
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		17CD184F2F08337200899189 /* QuickLookPreview_macOS */ = {
@@ -99,6 +120,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				17FBBD892F0831ED00BEAA3E /* Exceptions for "MarkdownPreview" folder in "MarkdownPreview" target */,
+				178AADDE2FB9D5D20086D069 /* Exceptions for "MarkdownPreview" folder in "Copy WebResources Files" phase from "MarkdownPreview" target */,
 			);
 			path = MarkdownPreview;
 			sourceTree = "<group>";
@@ -195,6 +217,7 @@
 				17FBBD792F0831EC00BEAA3E /* Sources */,
 				17FBBD7A2F0831EC00BEAA3E /* Frameworks */,
 				17FBBD7B2F0831EC00BEAA3E /* Resources */,
+				178AADDD2FB9D5BB0086D069 /* Copy WebResources Files */,
 				17CD185B2F08337200899189 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
