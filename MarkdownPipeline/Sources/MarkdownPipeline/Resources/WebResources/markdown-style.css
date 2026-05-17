@@ -17,6 +17,8 @@
     --code-inline-background-dark: #6e768166;
     --code-inline-text-light: #24292f;
     --code-inline-text-dark: #f0f6fc;
+    --code-block-background-light: #f6f6f6;
+    --code-block-background-dark: #1c1b1b;
     --blockquote-text-light: #656d76;
     --blockquote-text-dark: #b9b9b9;
     --blockquote-border-light: #656d76;
@@ -91,6 +93,7 @@ pre {
     font-size: 0.8125rem;
     line-height: 1.45;
     margin-block: 0.4rem;
+    background-color: var(--code-block-background-light);
 }
 
 /* Copy button for code blocks */
@@ -276,11 +279,13 @@ code {
 
 /* Don't style code inside pre blocks */
 pre code {
+    display: block;
     background-color: inherit;
-    padding: 0;
-    border-radius: 4;
+    padding: 1em;
+    border-radius: 4px;
     color: inherit;
     font-size: inherit;
+    white-space: pre;
 }
 
 /* Blockquotes */
@@ -358,6 +363,7 @@ img {
 
     pre {
         border-color: var(--line-dark);
+        background-color: var(--code-block-background-dark);
         color: var(--code-inline-text-dark);
     }
 

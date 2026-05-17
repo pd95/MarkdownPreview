@@ -9,3 +9,4 @@
 # Xcode build products
 DerivedData/
 build/
+tmp/
