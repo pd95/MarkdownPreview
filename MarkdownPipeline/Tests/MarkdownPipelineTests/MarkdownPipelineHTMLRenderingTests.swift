@@ -125,6 +125,31 @@ struct MarkdownPipelineHTMLRenderingTests {
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
         #expect(document.html.contains("<img src=\"https://example.com/image.png\""))
         #expect(document.html.contains("alt=\"Alt text\""))
+        #expect(document.html.contains("data-marklens-local-image") == false)
+    }
+
+    @Test func marksOnlyMarkdownLocalImagesForNativeLoading() throws {
+        let input = """
+        ![Relative](images/example.png)
+        ![File](file:///tmp/example.png)
+        <img src="images/raw.png">
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+        let markerCount = document.html.components(separatedBy: "data-marklens-local-image").count - 1
+
+        #expect(markerCount == 2)
+        #expect(document.html.contains("images/raw.png\" data-marklens-local-image") == false)
+    }
+
+    @Test func stripsReservedLocalImageCapabilitiesFromRawHTML() throws {
+        let input = """
+        <img src="images/raw.png" data-marklens-local-image="Zm9yZ2Vk">
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+
+        #expect(document.html.contains("data-marklens-local-image") == false)
     }
 
     @Test func rendersEmbeddedBase64Images() throws {
@@ -132,6 +157,7 @@ struct MarkdownPipelineHTMLRenderingTests {
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
         #expect(document.html.contains("src=\"data:image/png;base64,aGVsbG8=\""))
+        #expect(document.html.contains("data-marklens-local-image") == false)
     }
 
     @Test func filtersEmbeddedImagesWithDisallowedTypesOrEncoding() throws {

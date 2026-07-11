@@ -13,6 +13,8 @@ final class LocalDocumentAccess: ObservableObject {
     private var accessedFolders: [AccessedFolder] = []
     private var bookmarks: [Data] = []
     @Published private(set) var hasAuthorizedFolders = false
+    @Published private(set) var accessRevision = 0
+    @Published private(set) var authorizedFolders: [URL] = []
 
     init() {
         restoreBookmarks()
@@ -48,7 +50,22 @@ final class LocalDocumentAccess: ObservableObject {
         ))
         bookmarks.append(bookmark)
         persistBookmarks()
-        hasAuthorizedFolders = true
+        updatePublishedState()
+        accessRevision += 1
+    }
+
+    func revoke(folder: URL) {
+        let canonicalFolder = Self.canonical(folder)
+        guard let index = accessedFolders.firstIndex(where: { $0.canonicalURL == canonicalFolder }) else {
+            return
+        }
+
+        accessedFolders[index].securityScopedURL.stopAccessingSecurityScopedResource()
+        accessedFolders.remove(at: index)
+        bookmarks.remove(at: index)
+        persistBookmarks()
+        updatePublishedState()
+        accessRevision += 1
     }
 
     func revokeAll() {
@@ -57,7 +74,8 @@ final class LocalDocumentAccess: ObservableObject {
         bookmarks.removeAll()
         UserDefaults.standard.removeObject(forKey: Self.bookmarksKey)
         UserDefaults.standard.removeObject(forKey: "AuthorizedLocalDocumentFolders")
-        hasAuthorizedFolders = false
+        updatePublishedState()
+        accessRevision += 1
     }
 
     func hasAccess(to file: URL) -> Bool {
@@ -118,14 +136,23 @@ final class LocalDocumentAccess: ObservableObject {
         }
 
         persistBookmarks()
-        hasAuthorizedFolders = accessedFolders.isEmpty == false
+        updatePublishedState()
     }
 
     private func persistBookmarks() {
         UserDefaults.standard.set(bookmarks, forKey: Self.bookmarksKey)
     }
+
+    private func updatePublishedState() {
+        authorizedFolders = accessedFolders.map(\.canonicalURL).sorted {
+            $0.path.localizedStandardCompare($1.path) == .orderedAscending
+        }
+        hasAuthorizedFolders = authorizedFolders.isEmpty == false
+    }
 #else
     let hasAuthorizedFolders = false
+    let accessRevision = 0
+    let authorizedFolders: [URL] = []
     init() {}
 #endif
 }

@@ -122,8 +122,13 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitImage(_ image: Image) -> String {
-        let source = sanitizedImageURL(image.source, fallback: "").encodedHTMLAttribute()
+        let sanitizedSource = sanitizedImageURL(image.source, fallback: "")
+        let source = sanitizedSource.encodedHTMLAttribute()
         var result = "<img src=\"\(source)\""
+        if isLocalImageURL(sanitizedSource),
+           let capability = sanitizedSource.data(using: .utf8)?.base64EncodedString() {
+            result += " data-marklens-local-image=\"\(capability)\""
+        }
 
         if image.isEmpty == false {
             result += " alt=\""
@@ -137,6 +142,16 @@ struct HTMLVisitor: MarkupVisitor {
         result += image.title.map { " title=\"\($0.encodedHTMLAttribute())\"" } ?? ""
         result += ">"
         return result
+    }
+
+    private func isLocalImageURL(_ raw: String) -> Bool {
+        guard raw.isEmpty == false, raw.lowercased().hasPrefix("data:") == false else {
+            return false
+        }
+        guard let scheme = urlScheme(from: raw) else {
+            return true
+        }
+        return scheme.caseInsensitiveCompare("file") == .orderedSame
     }
 
     func visitInlineCode(_ inlineCode: InlineCode) -> String {
@@ -239,18 +254,22 @@ struct HTMLVisitor: MarkupVisitor {
     private func sanitizeRawHTML(_ rawHTML: String) -> String {
         let tags = Self.disallowedRawHTMLTags.joined(separator: "|")
         let pattern = "(?i)<\\s*/?\\s*(\(tags))\\b"
-        guard let regex = try? Regex(pattern) else {
-            return rawHTML
+        var result = rawHTML
+        if let markerRegex = try? Regex("(?i)\\s+data-marklens-local-image(?:\\s*=\\s*(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s>]+))?") {
+            result = result.replacing(markerRegex, with: "")
         }
-        let matches = rawHTML.matches(of: regex)
+
+        guard let regex = try? Regex(pattern) else {
+            return result
+        }
+        let matches = result.matches(of: regex)
         if matches.isEmpty {
-            return rawHTML
+            return result
         }
 
         let offsets = matches.map { match in
-            rawHTML.distance(from: rawHTML.startIndex, to: match.range.lowerBound)
+            result.distance(from: result.startIndex, to: match.range.lowerBound)
         }
-        var result = rawHTML
         for offset in offsets.sorted(by: >) {
             let index = result.index(result.startIndex, offsetBy: offset)
             result.replaceSubrange(index...index, with: "&lt;")

@@ -52,11 +52,12 @@ struct MarkLensApp: App {
                     showAboutPanel()
                 }
             }
-            CommandMenu("Permissions") {
-                Button("Forget Linked Folder Access") {
-                    localDocumentAccess.revokeAll()
-                }
-            }
+        }
+#endif
+#if os(macOS)
+        Settings {
+            FolderAccessSettingsView()
+                .environmentObject(localDocumentAccess)
         }
 #endif
     }

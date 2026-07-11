@@ -17,6 +17,8 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var documentURL: URL?
     var openDocument: (URL) async throws -> Void
     var requestLocalDocumentAccess: (URL, String) -> Void
+    var localImagePermissionDenied: (URL) -> Void
+    var reloadRequest: Int
     @Binding var printRequested: Bool
     @Binding var findMatchCount: Int
     @Binding var findCurrentIndex: Int
@@ -33,6 +35,8 @@ struct MarkdownWebView: PlatformViewRepresentable {
         documentURL: URL? = nil,
         openDocument: @escaping (URL) async throws -> Void = { _ in },
         requestLocalDocumentAccess: @escaping (URL, String) -> Void = { _, _ in },
+        localImagePermissionDenied: @escaping (URL) -> Void = { _ in },
+        reloadRequest: Int = 0,
         printRequested: Binding<Bool> = .constant(false),
         findMatchCount: Binding<Int> = .constant(0),
         findCurrentIndex: Binding<Int> = .constant(0),
@@ -45,6 +49,8 @@ struct MarkdownWebView: PlatformViewRepresentable {
         self.documentURL = documentURL
         self.openDocument = openDocument
         self.requestLocalDocumentAccess = requestLocalDocumentAccess
+        self.localImagePermissionDenied = localImagePermissionDenied
+        self.reloadRequest = reloadRequest
         self._printRequested = printRequested
         self._findMatchCount = findMatchCount
         self._findCurrentIndex = findCurrentIndex
@@ -60,6 +66,21 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     func makeView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+#if os(macOS)
+        let localImageHandler = LocalImageSchemeHandler()
+        localImageHandler.documentURL = documentURL
+        localImageHandler.allowedImageURLs = localImageURLs
+        localImageHandler.permissionDenied = { [weak coordinator = context.coordinator] url in
+            coordinator?.localImagePermissionDenied(url)
+        }
+        config.setURLSchemeHandler(localImageHandler, forURLScheme: Self.localImageScheme)
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.localImageScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        ))
+        context.coordinator.localImageHandler = localImageHandler
+#endif
         let webView = WKWebView(frame: .zero, configuration: config)
 #if os(macOS)
         webView.setValue(false, forKey: "drawsBackground")
@@ -131,12 +152,16 @@ struct MarkdownWebView: PlatformViewRepresentable {
         var hasher = Hasher()
         hasher.combine(html)
         hasher.combine(documentURL)
+        hasher.combine(reloadRequest)
         return hasher.finalize()
     }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: MarkdownWebView
         weak var webView: WKWebView?
+#if os(macOS)
+        weak var localImageHandler: LocalImageSchemeHandler?
+#endif
 
         var isPageReady = false
         var latestHash = 0
@@ -153,6 +178,10 @@ struct MarkdownWebView: PlatformViewRepresentable {
         }
 
         func updateState() {
+#if os(macOS)
+            localImageHandler?.documentURL = parent.documentURL
+            localImageHandler?.allowedImageURLs = parent.localImageURLs
+#endif
             let newHash = parent.contentHash
             let markdownChanged = newHash != latestHash
             let findTermChanged = parent.findTerm != latestFindTerm
@@ -175,6 +204,12 @@ struct MarkdownWebView: PlatformViewRepresentable {
             }
 
             handlePrintRequest()
+        }
+
+        func localImagePermissionDenied(_ url: URL) {
+            Task { @MainActor in
+                parent.localImagePermissionDenied(url)
+            }
         }
 
         private func searchCommand() -> String {
@@ -338,6 +373,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             }
 
             if url.isFileURL {
+#if os(macOS)
                 guard let documentURL = urlWithoutFragment(url) else {
                     decisionHandler(.cancel)
                     return
@@ -349,6 +385,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
                         parent.requestLocalDocumentAccess(documentURL, error.localizedDescription)
                     }
                 }
+#else
+                openExternalURL(url)
+#endif
             } else {
                 openExternalURL(url)
             }
@@ -368,4 +407,37 @@ struct MarkdownWebView: PlatformViewRepresentable {
             }
         }
     }
+
+    private static let localImageScheme = "marklens-local-image"
+
+    private var localImageURLs: Set<URL> {
+        guard let documentURL,
+              let regex = try? NSRegularExpression(
+                  pattern: "data-marklens-local-image=\\\"([^\\\"]+)\\\""
+              ) else {
+            return []
+        }
+
+        let range = NSRange(html.startIndex..<html.endIndex, in: html)
+        return Set(regex.matches(in: html, range: range).compactMap { match in
+            guard let capabilityRange = Range(match.range(at: 1), in: html),
+                  let data = Data(base64Encoded: String(html[capabilityRange])),
+                  let source = String(data: data, encoding: .utf8),
+                  let url = URL(string: source, relativeTo: documentURL)?.absoluteURL,
+                  url.isFileURL else {
+                return nil
+            }
+            return url.standardizedFileURL.resolvingSymlinksInPath()
+        })
+    }
+
+    private static let localImageScript = """
+        document.querySelectorAll('img[data-marklens-local-image]').forEach(image => {
+            const source = image.getAttribute('src');
+            if (!source) return;
+            const resolved = new URL(source, document.baseURI);
+            if (resolved.protocol !== 'file:') return;
+            image.src = '\(localImageScheme)://resource?url=' + encodeURIComponent(resolved.href);
+        });
+        """
 }

@@ -12,12 +12,15 @@ import AppKit
 #endif
 
 struct ContentView: View {
+#if os(macOS)
     @Environment(\.openDocument) private var openDocument
+#endif
     @EnvironmentObject private var localDocumentAccess: LocalDocumentAccess
     @ObservedObject var document: MarkdownDocument
     let fileURL: URL?
 #if os(macOS)
-    @State private var pendingLocalDocumentURL: URL?
+    @State private var pendingLocalAccessRequest: LocalAccessRequest?
+    @State private var failedLocalImageURLs: Set<URL> = []
 #endif
     @State private var localDocumentError: String?
     @State private var isPrintRequested = false
@@ -42,9 +45,7 @@ struct ContentView: View {
             MarkdownWebView(
                 html: document.renderedHTML,
                 documentURL: fileURL,
-                openDocument: { url in
-                    try await openDocument(at: url)
-                },
+                openDocument: openLocalDocument,
                 requestLocalDocumentAccess: { url, errorDescription in
 #if os(macOS)
                     handleLocalDocumentOpenFailure(url, errorDescription: errorDescription)
@@ -52,6 +53,12 @@ struct ContentView: View {
                     localDocumentError = errorDescription
 #endif
                 },
+                localImagePermissionDenied: { url in
+#if os(macOS)
+                    handleLocalImagePermissionFailure(url)
+#endif
+                },
+                reloadRequest: localDocumentAccess.accessRevision,
                 printRequested: $isPrintRequested,
                 findMatchCount: $previewFindMatchCount,
                 findCurrentIndex: $previewFindCurrentIndex,
@@ -123,6 +130,17 @@ struct ContentView: View {
                 }
             } else {
 #if os(macOS)
+                if failedLocalImageURLs.isEmpty == false {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            requestLocalImageAccess()
+                        } label: {
+                            Label("Load Local Images", systemImage: "photo.badge.exclamationmark")
+                        }
+                        .accessibilityIdentifier("loadLocalImagesButton")
+                    }
+                }
+
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         isPrintRequested = true
@@ -199,13 +217,18 @@ struct ContentView: View {
                 isPreviewFindPresented = false
             }
         }
-        .alert("Allow Access to Linked Documents?", isPresented: localAccessAlertPresented) {
+        .onChange(of: document.renderedHTML) {
+#if os(macOS)
+            failedLocalImageURLs.removeAll()
+#endif
+        }
+        .alert(localAccessAlertTitle, isPresented: localAccessAlertPresented) {
 #if os(macOS)
             Button("Choose \(localAccessFolderName) Folder") {
                 chooseLocalAccessFolder()
             }
             Button("Cancel", role: .cancel) {
-                pendingLocalDocumentURL = nil
+                pendingLocalAccessRequest = nil
             }
 #endif
         } message: {
@@ -213,7 +236,7 @@ struct ContentView: View {
             Text(localAccessExplanation)
 #endif
         }
-        .alert("Unable to Open Linked Document", isPresented: localErrorAlertPresented) {
+        .alert("Unable to Access Local File", isPresented: localErrorAlertPresented) {
             Button("OK", role: .cancel) {
                 localDocumentError = nil
             }
@@ -239,6 +262,16 @@ struct ContentView: View {
 
     private func rawString() -> String {
         document.text
+    }
+
+    private var openLocalDocument: (URL) async throws -> Void {
+#if os(macOS)
+        { url in
+            try await openDocument(at: url)
+        }
+#else
+        { _ in }
+#endif
     }
 
     private var findStatusText: String {
@@ -278,8 +311,8 @@ struct ContentView: View {
     private var localAccessAlertPresented: Binding<Bool> {
 #if os(macOS)
         Binding(
-            get: { pendingLocalDocumentURL != nil },
-            set: { if !$0 { pendingLocalDocumentURL = nil } }
+            get: { pendingLocalAccessRequest != nil },
+            set: { if !$0 { pendingLocalAccessRequest = nil } }
         )
 #else
         .constant(false)
@@ -293,14 +326,33 @@ struct ContentView: View {
         )
     }
 
+    private var localAccessAlertTitle: String {
+#if os(macOS)
+        switch pendingLocalAccessRequest {
+        case .document:
+            "Allow Access to Linked Documents?"
+        case .images:
+            "Allow Access to Local Images?"
+        case nil:
+            "Allow Folder Access?"
+        }
+#else
+        "Allow Folder Access?"
+#endif
+    }
+
 #if os(macOS)
     private var localAccessFolderURL: URL? {
-        guard let targetURL = pendingLocalDocumentURL else { return nil }
+        guard let request = pendingLocalAccessRequest else { return nil }
+        let targetURL = request.targetURL
         let documentFolder = fileURL?.deletingLastPathComponent().standardizedFileURL
         if let documentFolder, LocalDocumentAccess.contains(targetURL, in: documentFolder) {
             return documentFolder
         }
-        return targetURL.deletingLastPathComponent().standardizedFileURL
+        if case .document = request {
+            return targetURL.deletingLastPathComponent().standardizedFileURL
+        }
+        return nil
     }
 
     private var localAccessFolderName: String {
@@ -308,17 +360,23 @@ struct ContentView: View {
     }
 
     private var localAccessExplanation: String {
-        guard let targetURL = pendingLocalDocumentURL else { return "" }
-        return "\(targetURL.lastPathComponent) is inside the \(localAccessFolderName) folder. macOS requires your permission before MarkLens can open linked files in this folder. Access will be limited to \(localAccessFolderName) and used only for local document links."
+        guard let request = pendingLocalAccessRequest else { return "" }
+        switch request {
+        case .document(let targetURL):
+            return "\(targetURL.lastPathComponent) is inside the \(localAccessFolderName) folder. macOS requires your permission before MarkLens can open linked files in this folder. Access will be limited to \(localAccessFolderName) and used only for local document links."
+        case .images:
+            return "Some images are inside the \(localAccessFolderName) folder. macOS requires your permission before MarkLens can load local images in this document. Access will be limited to \(localAccessFolderName) and used only for local document resources."
+        }
     }
 
     private func chooseLocalAccessFolder() {
-        guard let targetURL = pendingLocalDocumentURL,
+        guard let request = pendingLocalAccessRequest,
               let expectedFolder = localAccessFolderURL else { return }
-        pendingLocalDocumentURL = nil
+        let panelTitle = localAccessAlertTitle.replacingOccurrences(of: "?", with: "")
+        pendingLocalAccessRequest = nil
 
         let panel = NSOpenPanel()
-        panel.title = "Allow Access to Linked Documents"
+        panel.title = panelTitle
         panel.message = "Allow MarkLens to access the current \(expectedFolder.lastPathComponent) folder."
         panel.prompt = "Allow Access"
         panel.canChooseFiles = false
@@ -331,18 +389,23 @@ struct ContentView: View {
             guard response == .OK, let selectedFolder = panel.url else { return }
             guard LocalDocumentAccess.sameFolder(selectedFolder, expectedFolder) else {
                 selectedFolder.stopAccessingSecurityScopedResource()
-                localDocumentError = "Choose the \(expectedFolder.lastPathComponent) folder to open \(targetURL.lastPathComponent)."
+                localDocumentError = "Choose the \(expectedFolder.lastPathComponent) folder to grant the requested access."
                 return
             }
 
             do {
                 try localDocumentAccess.authorize(folder: selectedFolder)
-                Task {
-                    do {
-                        try await openDocument(at: targetURL)
-                    } catch {
-                        localDocumentError = error.localizedDescription
+                switch request {
+                case .document(let targetURL):
+                    Task {
+                        do {
+                            try await openDocument(at: targetURL)
+                        } catch {
+                            localDocumentError = error.localizedDescription
+                        }
                     }
+                case .images:
+                    failedLocalImageURLs.removeAll()
                 }
             } catch {
                 localDocumentError = error.localizedDescription
@@ -358,8 +421,22 @@ struct ContentView: View {
         if localDocumentAccess.hasAccess(to: url) {
             localDocumentError = errorDescription
         } else {
-            pendingLocalDocumentURL = url
+            pendingLocalAccessRequest = .document(url)
         }
+    }
+
+    private func handleLocalImagePermissionFailure(_ url: URL) {
+        guard let documentFolder = fileURL?.deletingLastPathComponent(),
+              LocalDocumentAccess.contains(url, in: documentFolder),
+              localDocumentAccess.hasAccess(to: url) == false else {
+            return
+        }
+        failedLocalImageURLs.insert(url.standardizedFileURL)
+    }
+
+    private func requestLocalImageAccess() {
+        guard let targetURL = failedLocalImageURLs.first else { return }
+        pendingLocalAccessRequest = .images(targetURL)
     }
 
     private func isSupportedMarkdownDocument(_ url: URL) -> Bool {
@@ -368,6 +445,20 @@ struct ContentView: View {
     }
 #endif
 }
+
+#if os(macOS)
+private enum LocalAccessRequest {
+    case document(URL)
+    case images(URL)
+
+    var targetURL: URL {
+        switch self {
+        case .document(let url), .images(let url):
+            url
+        }
+    }
+}
+#endif
 
 private extension View {
     @ViewBuilder
