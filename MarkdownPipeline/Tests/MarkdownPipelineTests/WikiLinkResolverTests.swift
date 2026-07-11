@@ -67,6 +67,24 @@ struct WikiLinkResolverTests {
         }
     }
 
+    @Test func cooperativelyCancelsRecursiveSearch() throws {
+        try withWiki { root in
+            try "# Note".write(
+                to: root.appendingPathComponent("Note.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+
+            #expect(throws: CancellationError.self) {
+                try WikiLinkResolver().matches(
+                    for: "Note",
+                    in: root,
+                    shouldCancel: { true }
+                )
+            }
+        }
+    }
+
     private func withWiki(_ body: (URL) throws -> Void) throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("wikilink-tests-\(UUID().uuidString)", isDirectory: true)

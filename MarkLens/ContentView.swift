@@ -18,12 +18,16 @@ struct ContentView: View {
 #endif
     @EnvironmentObject private var localDocumentAccess: LocalDocumentAccess
     @ObservedObject var document: MarkdownDocument
+    @StateObject private var wikiNavigation: WikiNavigationModel
     let fileURL: URL?
 #if os(macOS)
     @State private var pendingLocalAccessRequest: LocalAccessRequest?
     @State private var failedLocalImageURLs: Set<URL> = []
     @State private var wikiLinkMatches: [URL] = []
     @State private var wikiLinkMatchesRoot: URL?
+    @State private var wikiResolutionGeneration = 0
+    @State private var isResolvingWikiLink = false
+    @State private var wikiResolutionWork: Task<WikiLinkResolution, Never>?
 #endif
     @State private var localDocumentError: String?
     @State private var isPrintRequested = false
@@ -41,13 +45,14 @@ struct ContentView: View {
     init(document: MarkdownDocument, fileURL: URL? = nil) {
         self.document = document
         self.fileURL = fileURL
+        self._wikiNavigation = StateObject(wrappedValue: WikiNavigationModel())
     }
 
     var body: some View {
         ZStack {
             MarkdownWebView(
-                html: document.renderedHTML,
-                documentURL: fileURL,
+                html: displayedHTML,
+                documentURL: displayedURL,
                 openDocument: openLocalDocument,
                 openWikiLink: openWikiLink,
                 requestLocalDocumentAccess: { url, errorDescription in
@@ -71,13 +76,20 @@ struct ContentView: View {
                 findBackwards: previewFindBackwards,
                 findAnchorRequest: previewFindAnchorRequest
             )
-            .allowsHitTesting(!isRawEditing)
+            .allowsHitTesting(!isRawEditing && !isWikiNavigationLoading)
             .zIndex(0)
 
             if isRawEditing {
                 RawEditorView(text: $rawDraft, showFind: $showFind)
                     .transition(.move(edge: .trailing))
                     .zIndex(1)
+            }
+
+            if isWikiNavigationLoading {
+                ProgressView("Loading Wiki Page…")
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                    .zIndex(2)
             }
         }
         .accessibilityIdentifier("contentView")
@@ -134,6 +146,41 @@ struct ContentView: View {
                 }
             } else {
 #if os(macOS)
+                if wikiNavigation.hasBrowserHistory {
+                    ToolbarItemGroup(placement: .navigation) {
+                        Button {
+                            navigateWikiBack()
+                        } label: {
+                            Label("Back", systemImage: "chevron.left")
+                        }
+                        .accessibilityIdentifier("wikiBackButton")
+                        .keyboardShortcut("[", modifiers: .command)
+                        .disabled(wikiNavigation.canGoBack == false || isWikiNavigationLoading)
+
+                        Button {
+                            navigateWikiForward()
+                        } label: {
+                            Label("Forward", systemImage: "chevron.right")
+                        }
+                        .accessibilityIdentifier("wikiForwardButton")
+                        .keyboardShortcut("]", modifiers: .command)
+                        .disabled(wikiNavigation.canGoForward == false || isWikiNavigationLoading)
+                    }
+                }
+
+                if let page = wikiNavigation.currentPage {
+                    if #available(macOS 26.0, *) {
+                        ToolbarItem(placement: .principal) {
+                            WikiPageToolbarTitle(path: page.displayPath)
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    } else {
+                        ToolbarItem(placement: .principal) {
+                            WikiPageToolbarTitle(path: page.displayPath)
+                        }
+                    }
+                }
+
                 if shouldOfferWikiFolderAccess {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
@@ -156,6 +203,10 @@ struct ContentView: View {
                     }
                 }
 
+                if #available(macOS 26.0, *) {
+                    ToolbarSpacer()
+                }
+
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         isPrintRequested = true
@@ -163,12 +214,16 @@ struct ContentView: View {
                         Label("Print", systemImage: "printer")
                     }
                     .keyboardShortcut("p")
-                }
 
-                if #available(macOS 26.0, *) {
-                    ToolbarSpacer()
+                    Button {
+                        beginPreviewFind()
+                    } label: {
+                        Label("Find", systemImage: "magnifyingglass")
+                    }
+                    .accessibilityIdentifier("previewFindButton")
+                    .keyboardShortcut("f")
                 }
-#endif
+#else
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         beginPreviewFind()
@@ -179,7 +234,6 @@ struct ContentView: View {
                     .keyboardShortcut("f")
                 }
 
-#if !os(macOS)
                 if isPreviewFindPresented || previewFindText.isEmpty == false {
                     ToolbarItemGroup(placement: .primaryAction) {
                         Text(findStatusText)
@@ -213,6 +267,7 @@ struct ContentView: View {
                         Label("Raw", systemImage: "square.and.pencil")
                     }
                     .keyboardShortcut("e")
+                    .disabled(wikiNavigation.isBrowsing)
                 }
             }
         }
@@ -232,10 +287,17 @@ struct ContentView: View {
                 isPreviewFindPresented = false
             }
         }
-        .onChange(of: document.renderedHTML) {
+        .onChange(of: displayedPageIdentity) {
 #if os(macOS)
             failedLocalImageURLs.removeAll()
 #endif
+            resetPreviewNavigationState()
+        }
+        .onDisappear {
+#if os(macOS)
+            cancelWikiResolution()
+#endif
+            wikiNavigation.cancelPendingNavigation()
         }
         .alert(localAccessAlertTitle, isPresented: localAccessAlertPresented) {
 #if os(macOS)
@@ -251,12 +313,13 @@ struct ContentView: View {
             Text(localAccessExplanation)
 #endif
         }
-        .alert("Unable to Access Local File", isPresented: localErrorAlertPresented) {
+        .alert("Unable to Open File", isPresented: localErrorAlertPresented) {
             Button("OK", role: .cancel) {
                 localDocumentError = nil
+                wikiNavigation.errorDescription = nil
             }
         } message: {
-            Text(localDocumentError ?? "The linked document could not be opened.")
+            Text(activeErrorDescription ?? "The linked document could not be opened.")
         }
 #if os(macOS)
         .sheet(
@@ -268,7 +331,7 @@ struct ContentView: View {
             if let root = wikiLinkMatchesRoot {
                 WikiLinkMatchChooser(matches: wikiLinkMatches, root: root) { url in
                     clearWikiLinkMatches()
-                    openResolvedWikiDocument(url)
+                    openResolvedWikiDocument(url, wikiRoot: root)
                 }
             } else {
                 EmptyView()
@@ -294,6 +357,33 @@ struct ContentView: View {
 
     private func rawString() -> String {
         document.text
+    }
+
+    private var displayedHTML: String {
+        wikiNavigation.currentPage?.html ?? document.renderedHTML
+    }
+
+    private var displayedURL: URL? {
+        wikiNavigation.currentPage?.url ?? fileURL
+    }
+
+    private var displayedContainsWikiLinks: Bool {
+        wikiNavigation.currentPage?.containsWikiLinks ?? document.containsWikiLinks
+    }
+
+    private var displayedPageIdentity: String {
+        if let page = wikiNavigation.currentPage {
+            return "wiki:\(page.url.path):\(page.html.hashValue)"
+        }
+        return "root:\(document.renderedHTML.hashValue)"
+    }
+
+    private var isWikiNavigationLoading: Bool {
+#if os(macOS)
+        wikiNavigation.isLoading || isResolvingWikiLink
+#else
+        wikiNavigation.isLoading
+#endif
     }
 
     private var openLocalDocument: (URL) async throws -> Void {
@@ -363,9 +453,18 @@ struct ContentView: View {
 
     private var localErrorAlertPresented: Binding<Bool> {
         Binding(
-            get: { localDocumentError != nil },
-            set: { if !$0 { localDocumentError = nil } }
+            get: { activeErrorDescription != nil },
+            set: {
+                if !$0 {
+                    localDocumentError = nil
+                    wikiNavigation.errorDescription = nil
+                }
+            }
         )
+    }
+
+    private var activeErrorDescription: String? {
+        localDocumentError ?? wikiNavigation.errorDescription
     }
 
     private var localAccessAlertTitle: String {
@@ -392,7 +491,7 @@ struct ContentView: View {
             return fileURL?.deletingLastPathComponent().standardizedFileURL
         }
         guard let targetURL = request.targetURL else { return nil }
-        let documentFolder = fileURL?.deletingLastPathComponent().standardizedFileURL
+        let documentFolder = displayedURL?.deletingLastPathComponent().standardizedFileURL
         if let documentFolder, LocalDocumentAccess.contains(targetURL, in: documentFolder) {
             return documentFolder
         }
@@ -487,7 +586,7 @@ struct ContentView: View {
     }
 
     private func handleLocalImagePermissionFailure(_ url: URL) {
-        guard let documentFolder = fileURL?.deletingLastPathComponent(),
+        guard let documentFolder = displayedURL?.deletingLastPathComponent(),
               LocalDocumentAccess.contains(url, in: documentFolder),
               localDocumentAccess.hasAccess(to: url) == false else {
             return
@@ -501,7 +600,7 @@ struct ContentView: View {
     }
 
     private var shouldOfferWikiFolderAccess: Bool {
-        guard document.containsWikiLinks, let fileURL else { return false }
+        guard displayedContainsWikiLinks, let fileURL else { return false }
         return localDocumentAccess.authorizedFolder(containing: fileURL) == nil
     }
 
@@ -510,44 +609,89 @@ struct ContentView: View {
             localDocumentError = "Save this document before opening wikilinks."
             return
         }
-        guard let root = localDocumentAccess.authorizedFolder(containing: fileURL) else {
+        guard let root = activeWikiRoot(containing: fileURL) else {
             pendingLocalAccessRequest = .wikiFolder(target)
             return
         }
 
+        wikiResolutionGeneration += 1
+        let generation = wikiResolutionGeneration
+        isResolvingWikiLink = true
+        wikiResolutionWork?.cancel()
+        let work = Task.detached(priority: .userInitiated) {
+            do {
+                let matches = try WikiLinkResolver().matches(
+                    for: target,
+                    in: root,
+                    shouldCancel: { Task.isCancelled }
+                )
+                return WikiLinkResolution.success(matches)
+            } catch is CancellationError {
+                return WikiLinkResolution.cancelled
+            } catch {
+                return WikiLinkResolution.failure(error.localizedDescription)
+            }
+        }
+        wikiResolutionWork = work
         Task {
-            let resolution = await Task.detached(priority: .userInitiated) {
-                do {
-                    return WikiLinkResolution.success(
-                        try WikiLinkResolver().matches(for: target, in: root)
-                    )
-                } catch {
-                    return WikiLinkResolution.failure(error.localizedDescription)
-                }
-            }.value
+            let resolution = await work.value
+
+            guard generation == wikiResolutionGeneration else { return }
+            isResolvingWikiLink = false
+            wikiResolutionWork = nil
 
             switch resolution {
             case .success(let matches):
-            if matches.count == 1, let match = matches.first {
-                openResolvedWikiDocument(match)
-            } else {
-                wikiLinkMatchesRoot = root
-                wikiLinkMatches = matches
-            }
+                if matches.count == 1, let match = matches.first {
+                    openResolvedWikiDocument(match, wikiRoot: root)
+                } else {
+                    wikiLinkMatchesRoot = root
+                    wikiLinkMatches = matches
+                }
             case .failure(let description):
                 localDocumentError = description
+            case .cancelled:
+                break
             }
         }
     }
 
-    private func openResolvedWikiDocument(_ url: URL) {
-        Task {
-            do {
-                try await openDocument(at: url)
-            } catch {
-                localDocumentError = error.localizedDescription
-            }
+    private func openResolvedWikiDocument(_ url: URL, wikiRoot: URL) {
+        wikiNavigation.navigate(to: url, wikiRoot: wikiRoot)
+    }
+
+    private func activeWikiRoot(containing fileURL: URL) -> URL? {
+        if let root = wikiNavigation.wikiRootURL,
+           localDocumentAccess.authorizedFolders.contains(where: {
+               LocalDocumentAccess.sameFolder($0, root)
+           }) {
+            return root
         }
+        return localDocumentAccess.authorizedFolder(containing: fileURL)
+    }
+
+    private func navigateWikiBack() {
+        cancelWikiResolution()
+        wikiNavigation.goBack()
+    }
+
+    private func navigateWikiForward() {
+        cancelWikiResolution()
+        wikiNavigation.goForward()
+    }
+
+    private func cancelWikiResolution() {
+        wikiResolutionGeneration += 1
+        wikiResolutionWork?.cancel()
+        wikiResolutionWork = nil
+        isResolvingWikiLink = false
+    }
+
+    private func resetPreviewNavigationState() {
+        isPreviewFindPresented = false
+        previewFindText = ""
+        previewFindMatchCount = 0
+        previewFindCurrentIndex = 0
     }
 
     private func clearWikiLinkMatches() {
@@ -586,6 +730,20 @@ private enum LocalAccessRequest {
 private enum WikiLinkResolution: Sendable {
     case success([URL])
     case failure(String)
+    case cancelled
+}
+
+private struct WikiPageToolbarTitle: View {
+    let path: String
+
+    var body: some View {
+        Text(path)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .help(path)
+            .accessibilityIdentifier("wikiPageTitle")
+    }
 }
 
 private struct WikiLinkMatchChooser: View {

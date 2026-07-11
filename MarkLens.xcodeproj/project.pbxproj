@@ -16,6 +16,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		A10000012FC0000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 17FBBD752F0831EC00BEAA3E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 17FBBD7C2F0831EC00BEAA3E;
+			remoteInfo = MarkLens;
+		};
 		178AADE92FB9D6A10086D069 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 17FBBD752F0831EC00BEAA3E /* Project object */;
@@ -57,6 +64,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A10000012FC0000000000002 /* MarkLensTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarkLensTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		17208FE62F09A33F000638BE /* QuickLook.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLook.framework; path = System/Library/Frameworks/QuickLook.framework; sourceTree = SDKROOT; };
 		172772F52FBA65D9003F7E82 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
 		17421AFF2F09491800C7EE6C /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
@@ -109,6 +117,11 @@
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A10000012FC0000000000003 /* MarkLensTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MarkLensTests;
+			sourceTree = "<group>";
+		};
 		178AADE42FB9D6A10086D069 /* MarkLensUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MarkLensUITests;
@@ -142,6 +155,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		A10000012FC0000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		178AADE02FB9D6A10086D069 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -190,6 +210,7 @@
 				17FBAA822F09EBDF0023F755 /* THIRD_PARTY_NOTICES */,
 				17CD187B2F0862C500899189 /* Shared */,
 				17FBBD7F2F0831EC00BEAA3E /* MarkLens */,
+				A10000012FC0000000000003 /* MarkLensTests */,
 				178AADE42FB9D6A10086D069 /* MarkLensUITests */,
 				17CD184F2F08337200899189 /* QuickLookPreview_macOS */,
 				17CD184C2F08337200899189 /* Frameworks */,
@@ -203,6 +224,7 @@
 				17FBBD7D2F0831EC00BEAA3E /* MarkLens.app */,
 				17CD184B2F08337100899189 /* QuickLookPreview_macOS.appex */,
 				178AADE32FB9D6A10086D069 /* MarkLensUITests.xctest */,
+				A10000012FC0000000000002 /* MarkLensTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -210,6 +232,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		A10000012FC0000000000004 /* MarkLensTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000012FC000000000000B /* Build configuration list for PBXNativeTarget "MarkLensTests" */;
+			buildPhases = (
+				A10000012FC0000000000005 /* Sources */,
+				A10000012FC0000000000006 /* Frameworks */,
+				A10000012FC0000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000012FC0000000000008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000012FC0000000000003 /* MarkLensTests */,
+			);
+			name = MarkLensTests;
+			packageProductDependencies = (
+			);
+			productName = MarkLensTests;
+			productReference = A10000012FC0000000000002 /* MarkLensTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		178AADE22FB9D6A10086D069 /* MarkLensUITests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 178AADEB2FB9D6A10086D069 /* Build configuration list for PBXNativeTarget "MarkLensUITests" */;
@@ -299,6 +344,10 @@
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 17FBBD7C2F0831EC00BEAA3E;
 					};
+					A10000012FC0000000000004 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 17FBBD7C2F0831EC00BEAA3E;
+					};
 					17CD184A2F08337100899189 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -328,11 +377,19 @@
 				17FBBD7C2F0831EC00BEAA3E /* MarkLens */,
 				17CD184A2F08337100899189 /* QuickLookPreview_macOS */,
 				178AADE22FB9D6A10086D069 /* MarkLensUITests */,
+				A10000012FC0000000000004 /* MarkLensTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A10000012FC0000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		178AADE12FB9D6A10086D069 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -357,6 +414,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		A10000012FC0000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		178AADDF2FB9D6A10086D069 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -381,6 +445,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		A10000012FC0000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 17FBBD7C2F0831EC00BEAA3E /* MarkLens */;
+			targetProxy = A10000012FC0000000000001 /* PBXContainerItemProxy */;
+		};
 		178AADEA2FB9D6A10086D069 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 17FBBD7C2F0831EC00BEAA3E /* MarkLens */;
@@ -397,6 +466,48 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		A10000012FC0000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.doapp.MarkLensTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MarkLens.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MarkLens";
+				TEST_TARGET_NAME = MarkLens;
+			};
+			name = Debug;
+		};
+		A10000012FC000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.doapp.MarkLensTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MarkLens.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MarkLens";
+				TEST_TARGET_NAME = MarkLens;
+			};
+			name = Release;
+		};
 		178AADEC2FB9D6A10086D069 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -762,6 +873,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		A10000012FC000000000000B /* Build configuration list for PBXNativeTarget "MarkLensTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000012FC0000000000009 /* Debug */,
+				A10000012FC000000000000A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		178AADEB2FB9D6A10086D069 /* Build configuration list for PBXNativeTarget "MarkLensUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

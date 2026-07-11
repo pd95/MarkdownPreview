@@ -25,7 +25,12 @@ public struct WikiLinkResolver: Sendable {
         self.markdownExtensions = Set(markdownExtensions.map { $0.lowercased() })
     }
 
-    public func matches(for target: String, in root: URL) throws -> [URL] {
+    public func matches(
+        for target: String,
+        in root: URL,
+        shouldCancel: @Sendable () -> Bool = { false }
+    ) throws -> [URL] {
+        if shouldCancel() { throw CancellationError() }
         guard let query = normalized(target) else {
             throw WikiLinkResolverError.invalidTarget
         }
@@ -43,6 +48,7 @@ public struct WikiLinkResolver: Sendable {
         let canonicalRoot = root.standardizedFileURL.resolvingSymlinksInPath()
         var matches: [URL] = []
         for case let candidate as URL in enumerator {
+            if shouldCancel() { throw CancellationError() }
             let values = try? candidate.resourceValues(forKeys: resourceKeys)
             guard values?.isRegularFile == true,
                   values?.isSymbolicLink != true,
@@ -70,6 +76,7 @@ public struct WikiLinkResolver: Sendable {
         guard matches.isEmpty == false else {
             throw WikiLinkResolverError.missingTarget(target)
         }
+        if shouldCancel() { throw CancellationError() }
         return matches.sorted {
             relativePath(of: $0, in: canonicalRoot).localizedStandardCompare(
                 relativePath(of: $1, in: canonicalRoot)

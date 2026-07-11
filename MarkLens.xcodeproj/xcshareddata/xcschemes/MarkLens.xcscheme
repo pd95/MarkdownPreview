@@ -35,6 +35,20 @@
                ReferencedContainer = "container:MarkLens.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A10000012FC0000000000004"
+               BuildableName = "MarkLensTests.xctest"
+               BlueprintName = "MarkLensTests"
+               ReferencedContainer = "container:MarkLens.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -61,6 +75,17 @@
                BlueprintIdentifier = "178AADE22FB9D6A10086D069"
                BuildableName = "MarkLensUITests.xctest"
                BlueprintName = "MarkLensUITests"
+               ReferencedContainer = "container:MarkLens.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A10000012FC0000000000004"
+               BuildableName = "MarkLensTests.xctest"
+               BlueprintName = "MarkLensTests"
                ReferencedContainer = "container:MarkLens.xcodeproj">
             </BuildableReference>
          </TestableReference>
