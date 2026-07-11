@@ -32,6 +32,8 @@
 - Recent commits use short, imperative summaries (e.g., "Remove print() and disable \"drawsBackground\"").
 - Keep commits focused on a single change area.
 - Use multi-line commit messages: a short title plus 2–4 bullets describing the main changes.
+- For agent-assisted commits, infer the human maintainer identity from repository history or configuration and preserve it as both author and committer.
+- Credit the assisting agent in the commit message with a `Co-Authored by` trailer using that agent's identity.
 - PRs should include a brief description, steps to validate, and screenshots for UI changes in the preview rendering.
 - Link related issues when applicable and call out any manual testing performed in Xcode.
 
