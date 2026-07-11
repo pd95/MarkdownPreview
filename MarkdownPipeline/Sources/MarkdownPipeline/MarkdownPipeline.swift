@@ -22,7 +22,8 @@ public struct MarkdownPipeline {
         let extraction = FrontMatterExtractor().extract(from: markdown)
         let mergedContext = merge(context: context, frontMatter: extraction.frontMatter)
 
-        let normalizedMarkdown = MarkdownFenceNormalizer().normalize(extraction.bodyMarkdown)
+        let protectedMarkdown = WikiLinkEscapes.protect(in: extraction.bodyMarkdown)
+        let normalizedMarkdown = MarkdownFenceNormalizer().normalize(protectedMarkdown.markdown)
         let document = SwiftMarkdownParser().parse(markdown: normalizedMarkdown)
         let highlights: [Int: CodeHighlightResult]
         if mergedContext.enableCodeHighlighting {
@@ -33,13 +34,19 @@ public struct MarkdownPipeline {
         } else {
             highlights = [:]
         }
-        let bodyHTML = HTMLVisitor.render(
+        let renderedBody = HTMLVisitor.render(
             document: document,
             keepLineBreaks: true,
-            codeBlockHighlights: highlights
+            codeBlockHighlights: highlights,
+            escapedWikiLinkPlaceholder: protectedMarkdown.placeholder
         )
-        let html = try HTMLEmitter().render(bodyHTML: bodyHTML, title: mergedContext.title, theme: mergedContext.theme)
-        return HTMLDocument(html: html, title: mergedContext.title, baseURL: mergedContext.baseURL)
+        let html = try HTMLEmitter().render(bodyHTML: renderedBody.html, title: mergedContext.title, theme: mergedContext.theme)
+        return HTMLDocument(
+            html: html,
+            title: mergedContext.title,
+            baseURL: mergedContext.baseURL,
+            containsWikiLinks: renderedBody.containsWikiLinks
+        )
     }
 
     private func merge(context: PipelineContext, frontMatter: FrontMatter?) -> PipelineContext {

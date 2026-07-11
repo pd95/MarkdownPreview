@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import MarkdownPipeline
 #if os(macOS)
 import AppKit
 #endif
@@ -21,6 +22,8 @@ struct ContentView: View {
 #if os(macOS)
     @State private var pendingLocalAccessRequest: LocalAccessRequest?
     @State private var failedLocalImageURLs: Set<URL> = []
+    @State private var wikiLinkMatches: [URL] = []
+    @State private var wikiLinkMatchesRoot: URL?
 #endif
     @State private var localDocumentError: String?
     @State private var isPrintRequested = false
@@ -46,6 +49,7 @@ struct ContentView: View {
                 html: document.renderedHTML,
                 documentURL: fileURL,
                 openDocument: openLocalDocument,
+                openWikiLink: openWikiLink,
                 requestLocalDocumentAccess: { url, errorDescription in
 #if os(macOS)
                     handleLocalDocumentOpenFailure(url, errorDescription: errorDescription)
@@ -130,6 +134,17 @@ struct ContentView: View {
                 }
             } else {
 #if os(macOS)
+                if shouldOfferWikiFolderAccess {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            pendingLocalAccessRequest = .wikiFolder(nil)
+                        } label: {
+                            Label("Allow Wiki Folder Access", systemImage: "folder.badge.plus")
+                        }
+                        .accessibilityIdentifier("allowWikiFolderAccessButton")
+                    }
+                }
+
                 if failedLocalImageURLs.isEmpty == false {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
@@ -244,6 +259,23 @@ struct ContentView: View {
             Text(localDocumentError ?? "The linked document could not be opened.")
         }
 #if os(macOS)
+        .sheet(
+            isPresented: Binding(
+                get: { wikiLinkMatches.isEmpty == false },
+                set: { if $0 == false { clearWikiLinkMatches() } }
+            )
+        ) {
+            if let root = wikiLinkMatchesRoot {
+                WikiLinkMatchChooser(matches: wikiLinkMatches, root: root) { url in
+                    clearWikiLinkMatches()
+                    openResolvedWikiDocument(url)
+                }
+            } else {
+                EmptyView()
+            }
+        }
+#endif
+#if os(macOS)
         .focusedSceneValue(\.printAction, PrintAction {
             isPrintRequested = true
         })
@@ -272,6 +304,16 @@ struct ContentView: View {
 #else
         { _ in }
 #endif
+    }
+
+    private var openWikiLink: (String) -> Void {
+        { target in
+#if os(macOS)
+            resolveWikiLink(target)
+#else
+            localDocumentError = "Wiki folder navigation is available on macOS."
+#endif
+        }
     }
 
     private var findStatusText: String {
@@ -333,6 +375,8 @@ struct ContentView: View {
             "Allow Access to Linked Documents?"
         case .images:
             "Allow Access to Local Images?"
+        case .wikiFolder:
+            "Allow Access to Wiki Folder?"
         case nil:
             "Allow Folder Access?"
         }
@@ -344,7 +388,10 @@ struct ContentView: View {
 #if os(macOS)
     private var localAccessFolderURL: URL? {
         guard let request = pendingLocalAccessRequest else { return nil }
-        let targetURL = request.targetURL
+        if case .wikiFolder = request {
+            return fileURL?.deletingLastPathComponent().standardizedFileURL
+        }
+        guard let targetURL = request.targetURL else { return nil }
         let documentFolder = fileURL?.deletingLastPathComponent().standardizedFileURL
         if let documentFolder, LocalDocumentAccess.contains(targetURL, in: documentFolder) {
             return documentFolder
@@ -366,6 +413,8 @@ struct ContentView: View {
             return "\(targetURL.lastPathComponent) is inside the \(localAccessFolderName) folder. macOS requires your permission before MarkLens can open linked files in this folder. Access will be limited to \(localAccessFolderName) and used only for local document links."
         case .images:
             return "Some images are inside the \(localAccessFolderName) folder. macOS requires your permission before MarkLens can load local images in this document. Access will be limited to \(localAccessFolderName) and used only for local document resources."
+        case .wikiFolder:
+            return "Choose the root folder for this wiki. MarkLens will search its Markdown files when you open a wikilink. Access is limited to the selected folder and is remembered until you remove it in Settings."
         }
     }
 
@@ -377,7 +426,9 @@ struct ContentView: View {
 
         let panel = NSOpenPanel()
         panel.title = panelTitle
-        panel.message = "Allow MarkLens to access the current \(expectedFolder.lastPathComponent) folder."
+        panel.message = request.isWikiFolder
+            ? "Choose this folder or an enclosing folder as the wiki root."
+            : "Allow MarkLens to access the current \(expectedFolder.lastPathComponent) folder."
         panel.prompt = "Allow Access"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -387,9 +438,15 @@ struct ContentView: View {
 
         panel.begin { response in
             guard response == .OK, let selectedFolder = panel.url else { return }
-            guard LocalDocumentAccess.sameFolder(selectedFolder, expectedFolder) else {
+            let selectedFolderIsValid = request.isWikiFolder
+                ? (LocalDocumentAccess.contains(fileURL ?? expectedFolder, in: selectedFolder)
+                    || LocalDocumentAccess.sameFolder(selectedFolder, expectedFolder))
+                : LocalDocumentAccess.sameFolder(selectedFolder, expectedFolder)
+            guard selectedFolderIsValid else {
                 selectedFolder.stopAccessingSecurityScopedResource()
-                localDocumentError = "Choose the \(expectedFolder.lastPathComponent) folder to grant the requested access."
+                localDocumentError = request.isWikiFolder
+                    ? "Choose a folder that contains this Markdown document."
+                    : "Choose the \(expectedFolder.lastPathComponent) folder to grant the requested access."
                 return
             }
 
@@ -406,6 +463,10 @@ struct ContentView: View {
                     }
                 case .images:
                     failedLocalImageURLs.removeAll()
+                case .wikiFolder(let target):
+                    if let target {
+                        resolveWikiLink(target)
+                    }
                 }
             } catch {
                 localDocumentError = error.localizedDescription
@@ -439,6 +500,61 @@ struct ContentView: View {
         pendingLocalAccessRequest = .images(targetURL)
     }
 
+    private var shouldOfferWikiFolderAccess: Bool {
+        guard document.containsWikiLinks, let fileURL else { return false }
+        return localDocumentAccess.authorizedFolder(containing: fileURL) == nil
+    }
+
+    private func resolveWikiLink(_ target: String) {
+        guard let fileURL else {
+            localDocumentError = "Save this document before opening wikilinks."
+            return
+        }
+        guard let root = localDocumentAccess.authorizedFolder(containing: fileURL) else {
+            pendingLocalAccessRequest = .wikiFolder(target)
+            return
+        }
+
+        Task {
+            let resolution = await Task.detached(priority: .userInitiated) {
+                do {
+                    return WikiLinkResolution.success(
+                        try WikiLinkResolver().matches(for: target, in: root)
+                    )
+                } catch {
+                    return WikiLinkResolution.failure(error.localizedDescription)
+                }
+            }.value
+
+            switch resolution {
+            case .success(let matches):
+            if matches.count == 1, let match = matches.first {
+                openResolvedWikiDocument(match)
+            } else {
+                wikiLinkMatchesRoot = root
+                wikiLinkMatches = matches
+            }
+            case .failure(let description):
+                localDocumentError = description
+            }
+        }
+    }
+
+    private func openResolvedWikiDocument(_ url: URL) {
+        Task {
+            do {
+                try await openDocument(at: url)
+            } catch {
+                localDocumentError = error.localizedDescription
+            }
+        }
+    }
+
+    private func clearWikiLinkMatches() {
+        wikiLinkMatches = []
+        wikiLinkMatchesRoot = nil
+    }
+
     private func isSupportedMarkdownDocument(_ url: URL) -> Bool {
         guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
         return MarkdownDocument.readableContentTypes.contains { type.conforms(to: $0) }
@@ -450,12 +566,75 @@ struct ContentView: View {
 private enum LocalAccessRequest {
     case document(URL)
     case images(URL)
+    case wikiFolder(String?)
 
-    var targetURL: URL {
+    var targetURL: URL? {
         switch self {
         case .document(let url), .images(let url):
             url
+        case .wikiFolder:
+            nil
         }
+    }
+
+    var isWikiFolder: Bool {
+        if case .wikiFolder = self { return true }
+        return false
+    }
+}
+
+private enum WikiLinkResolution: Sendable {
+    case success([URL])
+    case failure(String)
+}
+
+private struct WikiLinkMatchChooser: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let matches: [URL]
+    let root: URL
+    let open: (URL) -> Void
+    @State private var searchText = ""
+
+    var body: some View {
+        NavigationStack {
+            List(filteredMatches) { match in
+                Button(match.path) {
+                    dismiss()
+                    open(match.url)
+                }
+                .buttonStyle(.plain)
+            }
+            .searchable(text: $searchText, prompt: "Filter by path")
+            .navigationTitle("Choose a Wiki Document")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 480, minHeight: 320)
+    }
+
+    private var filteredMatches: [Match] {
+        let resolved = matches.map { url in
+            Match(
+                url: url,
+                path: WikiLinkResolver().relativePath(of: url, in: root)
+            )
+        }
+        guard searchText.isEmpty == false else { return resolved }
+        return resolved.filter { match in
+            match.path.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private struct Match: Identifiable {
+        let url: URL
+        let path: String
+        var id: URL { url }
     }
 }
 #endif

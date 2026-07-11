@@ -3,6 +3,82 @@ import Testing
 
 @Suite("HTML Rendering")
 struct MarkdownPipelineHTMLRenderingTests {
+    @Test func rendersWikiLinksAndReportsMetadata() throws {
+        let input = "See [[overview]], [[guides/start.md]], and [[open-questions|the backlog]]."
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+
+        #expect(document.containsWikiLinks)
+        #expect(document.html.contains("href=\"marklens-wikilink://open?target=overview\""))
+        #expect(document.html.contains("href=\"marklens-wikilink://open?target=guides/start.md\""))
+        #expect(document.html.contains(">the backlog</a>"))
+    }
+
+    @Test func leavesUnsupportedWikiLinkFormsAsText() throws {
+        let input = "[[../secret]] [[note#Heading]] [[note^block]] [[note|]]"
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+
+        #expect(document.containsWikiLinks == false)
+        #expect(document.html.contains("[[../secret]]"))
+        #expect(document.html.contains("[[note#Heading]]"))
+    }
+
+    @Test func doesNotRenderWikiLinksInsideCode() throws {
+        let input = "Use `[[inline]]`.\n\n```text\n[[fenced]]\n```"
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+
+        #expect(document.containsWikiLinks == false)
+        #expect(document.html.contains("<code>[[inline]]</code>"))
+        #expect(document.html.contains("[[fenced]]"))
+    }
+
+    @Test func escapedWikiLinkRemainsText() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(#"\[[overview]]"#),
+            context: PipelineContext()
+        )
+
+        #expect(document.containsWikiLinks == false)
+        #expect(document.html.contains("[[overview]]"))
+    }
+
+    @Test func escapedBackslashLeavesWikiLinkActive() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(#"\\[[overview]]"#),
+            context: PipelineContext()
+        )
+
+        #expect(document.containsWikiLinks)
+        #expect(document.html.contains(#"\<a href="marklens-wikilink://open?target=overview""#))
+    }
+
+    @Test func oddBackslashRunEscapesWikiLink() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(#"\\\[[overview]]"#),
+            context: PipelineContext()
+        )
+
+        #expect(document.containsWikiLinks == false)
+        #expect(document.html.contains(#"\[[overview]]"#))
+    }
+
+    @Test func wikilinkInsideMarkdownLinkRemainsText() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string("[Outer [[overview]]](https://example.com)"),
+            context: PipelineContext()
+        )
+
+        #expect(document.containsWikiLinks == false)
+        #expect(document.html.contains("<a href=\"https://example.com\">Outer [[overview]]</a>"))
+        #expect(document.html.contains("data-marklens-wikilink") == false)
+    }
+
     @Test func rendersListsAndCheckboxes() throws {
         let input = """
         - First

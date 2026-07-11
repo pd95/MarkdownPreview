@@ -82,6 +82,13 @@ final class LocalDocumentAccess: ObservableObject {
         accessedFolders.contains { Self.contains(file, in: $0.canonicalURL) }
     }
 
+    func authorizedFolder(containing file: URL) -> URL? {
+        accessedFolders
+            .map(\.canonicalURL)
+            .filter { Self.contains(file, in: $0) }
+            .max { $0.pathComponents.count < $1.pathComponents.count }
+    }
+
     static func contains(_ file: URL, in folder: URL) -> Bool {
         let fileComponents = canonical(file).pathComponents
         let folderComponents = canonical(folder).pathComponents
@@ -154,5 +161,6 @@ final class LocalDocumentAccess: ObservableObject {
     let accessRevision = 0
     let authorizedFolders: [URL] = []
     init() {}
+    func authorizedFolder(containing file: URL) -> URL? { nil }
 #endif
 }

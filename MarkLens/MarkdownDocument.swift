@@ -15,12 +15,15 @@ final class MarkdownDocument: ReferenceFileDocument {
 
     private(set) var text: String
     @Published private(set) var renderedHTML: String
+    @Published private(set) var containsWikiLinks: Bool
     let filename: String?
 
     init(text: String = "") {
         self.text = text
         self.filename = nil
-        self.renderedHTML = Self.renderHTML(from: text, title: nil)
+        let rendering = Self.renderHTML(from: text, title: nil)
+        self.renderedHTML = rendering.html
+        self.containsWikiLinks = rendering.containsWikiLinks
     }
 
     static let readableContentTypes = [
@@ -39,7 +42,9 @@ final class MarkdownDocument: ReferenceFileDocument {
         }
         self.text = text
         self.filename = configuration.file.preferredFilename
-        self.renderedHTML = Self.renderHTML(from: text, title: configuration.file.preferredFilename)
+        let rendering = Self.renderHTML(from: text, title: configuration.file.preferredFilename)
+        self.renderedHTML = rendering.html
+        self.containsWikiLinks = rendering.containsWikiLinks
     }
 
     func snapshot(contentType: UTType) throws -> String {
@@ -57,16 +62,18 @@ final class MarkdownDocument: ReferenceFileDocument {
         }
 
         text = newText
-        renderedHTML = Self.renderHTML(from: newText, title: filename)
+        let rendering = Self.renderHTML(from: newText, title: filename)
+        renderedHTML = rendering.html
+        containsWikiLinks = rendering.containsWikiLinks
     }
 
-    private static func renderHTML(from markdown: String, title: String?) -> String {
+    private static func renderHTML(from markdown: String, title: String?) -> (html: String, containsWikiLinks: Bool) {
         let pipeline = MarkdownPipeline.defaultHTML()
         let context = PipelineContext(title: title)
         if let document = try? pipeline.renderHTML(from: .string(markdown), context: context) {
-            return document.html
+            return (document.html, document.containsWikiLinks)
         }
-        return renderFailureHTML
+        return (renderFailureHTML, false)
     }
 
     private static let renderFailureHTML = "<!doctype html><html><body><pre>Unable to render document.</pre></body></html>"

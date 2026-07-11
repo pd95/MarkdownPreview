@@ -16,6 +16,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var html: String
     var documentURL: URL?
     var openDocument: (URL) async throws -> Void
+    var openWikiLink: (String) -> Void
     var requestLocalDocumentAccess: (URL, String) -> Void
     var localImagePermissionDenied: (URL) -> Void
     var reloadRequest: Int
@@ -34,6 +35,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         html: String,
         documentURL: URL? = nil,
         openDocument: @escaping (URL) async throws -> Void = { _ in },
+        openWikiLink: @escaping (String) -> Void = { _ in },
         requestLocalDocumentAccess: @escaping (URL, String) -> Void = { _, _ in },
         localImagePermissionDenied: @escaping (URL) -> Void = { _ in },
         reloadRequest: Int = 0,
@@ -48,6 +50,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         self.html = html
         self.documentURL = documentURL
         self.openDocument = openDocument
+        self.openWikiLink = openWikiLink
         self.requestLocalDocumentAccess = requestLocalDocumentAccess
         self.localImagePermissionDenied = localImagePermissionDenied
         self.reloadRequest = reloadRequest
@@ -369,6 +372,17 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
             if isSameDocumentAnchor(url, in: webView) {
                 decisionHandler(.allow)
+                return
+            }
+
+            if url.scheme?.caseInsensitiveCompare("marklens-wikilink") == .orderedSame {
+                if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                   components.host == "open",
+                   let target = components.queryItems?.first(where: { $0.name == "target" })?.value,
+                   target.isEmpty == false {
+                    parent.openWikiLink(target)
+                }
+                decisionHandler(.cancel)
                 return
             }
 

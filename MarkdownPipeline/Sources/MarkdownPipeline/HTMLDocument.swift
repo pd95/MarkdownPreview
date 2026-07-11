@@ -4,11 +4,13 @@ public struct HTMLDocument {
     public let html: String
     public let title: String?
     public let baseURL: URL?
+    public let containsWikiLinks: Bool
 
-    public init(html: String, title: String?, baseURL: URL?) {
+    public init(html: String, title: String?, baseURL: URL?, containsWikiLinks: Bool = false) {
         self.html = html
         self.title = title
         self.baseURL = baseURL
+        self.containsWikiLinks = containsWikiLinks
     }
 
     @discardableResult

@@ -1,0 +1,77 @@
+import Foundation
+import Testing
+@testable import MarkdownPipeline
+
+@Suite("Wiki Link Resolution")
+struct WikiLinkResolverTests {
+    @Test func resolvesNamesAcrossSupportedExtensionsRecursively() throws {
+        try withWiki { root in
+            let nested = root.appendingPathComponent("Guides", isDirectory: true)
+            try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+            let target = nested.appendingPathComponent("Overview.markdown")
+            try "# Overview".write(to: target, atomically: true, encoding: .utf8)
+
+            let matches = try WikiLinkResolver().matches(for: "overview", in: root)
+            #expect(matches == [target.standardizedFileURL.resolvingSymlinksInPath()])
+        }
+    }
+
+    @Test func pathQualifiedTargetsAreRootRelative() throws {
+        try withWiki { root in
+            let nested = root.appendingPathComponent("Guides", isDirectory: true)
+            try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+            let target = nested.appendingPathComponent("Start.md")
+            try "# Start".write(to: target, atomically: true, encoding: .utf8)
+
+            let matches = try WikiLinkResolver().matches(for: "guides/start", in: root)
+            #expect(matches.count == 1)
+            #expect(WikiLinkResolver().relativePath(of: matches[0], in: root) == "Guides/Start.md")
+        }
+    }
+
+    @Test func returnsDuplicateNamesInStablePathOrder() throws {
+        try withWiki { root in
+            for folder in ["Zeta", "Alpha"] {
+                let directory = root.appendingPathComponent(folder, isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try "# Note".write(
+                    to: directory.appendingPathComponent("Note.md"),
+                    atomically: true,
+                    encoding: .utf8
+                )
+            }
+
+            let matches = try WikiLinkResolver().matches(for: "Note", in: root)
+            let paths = matches.map { WikiLinkResolver().relativePath(of: $0, in: root) }
+            #expect(paths == ["Alpha/Note.md", "Zeta/Note.md"])
+        }
+    }
+
+    @Test func rejectsTraversalAndIgnoresSymlinksOutsideRoot() throws {
+        try withWiki { root in
+            #expect(throws: WikiLinkResolverError.self) {
+                try WikiLinkResolver().matches(for: "../Secret", in: root)
+            }
+
+            let outside = root.deletingLastPathComponent().appendingPathComponent("Outside.md")
+            defer { try? FileManager.default.removeItem(at: outside) }
+            try "# Outside".write(to: outside, atomically: true, encoding: .utf8)
+            try FileManager.default.createSymbolicLink(
+                at: root.appendingPathComponent("Outside.md"),
+                withDestinationURL: outside
+            )
+
+            #expect(throws: WikiLinkResolverError.self) {
+                try WikiLinkResolver().matches(for: "Outside", in: root)
+            }
+        }
+    }
+
+    private func withWiki(_ body: (URL) throws -> Void) throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wikilink-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try body(root)
+    }
+}

@@ -20,6 +20,11 @@ extension String {
 }
 
 struct HTMLVisitor: MarkupVisitor {
+    struct RenderResult {
+        let html: String
+        let containsWikiLinks: Bool
+    }
+
     var softBreak: String
     var skipParagraphTags = false
     var currentTable: Table?
@@ -27,6 +32,9 @@ struct HTMLVisitor: MarkupVisitor {
     var codeBlockIndex = 0
     var codeBlockHighlights: [Int: CodeHighlightResult]
     var headingIDCounts: [String: Int] = [:]
+    var containsWikiLinks = false
+    var escapedWikiLinkPlaceholder: String?
+    var linkDepth = 0
 
     static let disallowedRawHTMLTags = [
         "title",
@@ -40,14 +48,29 @@ struct HTMLVisitor: MarkupVisitor {
         "plaintext"
     ]
 
-    init(keepLineBreaks: Bool = false, codeBlockHighlights: [Int: CodeHighlightResult] = [:]) {
+    init(
+        keepLineBreaks: Bool = false,
+        codeBlockHighlights: [Int: CodeHighlightResult] = [:],
+        escapedWikiLinkPlaceholder: String? = nil
+    ) {
         softBreak = keepLineBreaks ? "<br>" : "\n"
         self.codeBlockHighlights = codeBlockHighlights
+        self.escapedWikiLinkPlaceholder = escapedWikiLinkPlaceholder
     }
 
-    static func render(document: Document, keepLineBreaks: Bool = false, codeBlockHighlights: [Int: CodeHighlightResult] = [:]) -> String {
-        var visitor = HTMLVisitor(keepLineBreaks: keepLineBreaks, codeBlockHighlights: codeBlockHighlights)
-        return visitor.visit(document)
+    static func render(
+        document: Document,
+        keepLineBreaks: Bool = false,
+        codeBlockHighlights: [Int: CodeHighlightResult] = [:],
+        escapedWikiLinkPlaceholder: String? = nil
+    ) -> RenderResult {
+        var visitor = HTMLVisitor(
+            keepLineBreaks: keepLineBreaks,
+            codeBlockHighlights: codeBlockHighlights,
+            escapedWikiLinkPlaceholder: escapedWikiLinkPlaceholder
+        )
+        let html = visitor.visit(document)
+        return RenderResult(html: html, containsWikiLinks: visitor.containsWikiLinks)
     }
 
     mutating func defaultVisit(_ markup: any Markup) -> String {
@@ -58,8 +81,20 @@ struct HTMLVisitor: MarkupVisitor {
         return result
     }
 
-    func visitText(_ text: Text) -> String {
-        text.plainText.encodedHTMLEntities()
+    mutating func visitText(_ text: Text) -> String {
+        guard linkDepth == 0 else {
+            return WikiLinkEscapes.restoreText(
+                text.plainText,
+                placeholder: escapedWikiLinkPlaceholder,
+                includeBackslash: false
+            ).encodedHTMLEntities()
+        }
+        let rendered = WikiLinkRenderer.render(
+            text.plainText,
+            escapedWikiLinkPlaceholder: escapedWikiLinkPlaceholder
+        )
+        containsWikiLinks = containsWikiLinks || rendered.containsWikiLinks
+        return rendered.html
     }
 
     mutating func visitParagraph(_ paragraph: Paragraph) -> String {
@@ -114,9 +149,11 @@ struct HTMLVisitor: MarkupVisitor {
     mutating func visitLink(_ link: Link) -> String {
         let destination = sanitizedURL(link.destination, fallback: "#").encodedHTMLAttribute()
         var result = "<a href=\"\(destination)\">"
+        linkDepth += 1
         for child in link.children {
             result += visit(child)
         }
+        linkDepth -= 1
         result += "</a>"
         return result
     }
@@ -155,7 +192,12 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     func visitInlineCode(_ inlineCode: InlineCode) -> String {
-        "<code>\(inlineCode.code.encodedHTMLEntities())</code>"
+        let code = WikiLinkEscapes.restoreText(
+            inlineCode.code,
+            placeholder: escapedWikiLinkPlaceholder,
+            includeBackslash: true
+        )
+        return "<code>\(code.encodedHTMLEntities())</code>"
     }
 
     func visitLineBreak(_ lineBreak: LineBreak) -> String {
@@ -186,11 +228,21 @@ struct HTMLVisitor: MarkupVisitor {
 
         if let highlight {
             let languageClass = highlight.language.map { " language-\($0)" } ?? ""
-            return "<pre><code class=\"hljs\(languageClass)\">\(highlight.html)</code></pre>\n"
+            let literalHTML = WikiLinkEscapes.restoreText(
+                highlight.html,
+                placeholder: escapedWikiLinkPlaceholder,
+                includeBackslash: true
+            )
+            return "<pre><code class=\"hljs\(languageClass)\">\(literalHTML)</code></pre>\n"
         }
 
         var result = "<pre><code class=\"lang-\(codeBlock.language ?? "plaintext")\">"
-        result += codeBlock.code.trimmingCharacters(in: .newlines).encodedHTMLEntities()
+        let literalCode = WikiLinkEscapes.restoreText(
+            codeBlock.code,
+            placeholder: escapedWikiLinkPlaceholder,
+            includeBackslash: true
+        )
+        result += literalCode.trimmingCharacters(in: .newlines).encodedHTMLEntities()
         result += "\n</code></pre>\n"
         return result
     }
@@ -242,13 +294,23 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitHTMLBlock(_ html: HTMLBlock) -> String {
-        var result = sanitizeRawHTML(html.rawHTML)
+        let rawHTML = WikiLinkEscapes.restoreText(
+            html.rawHTML,
+            placeholder: escapedWikiLinkPlaceholder,
+            includeBackslash: true
+        )
+        var result = sanitizeRawHTML(rawHTML)
         result += "\n"
         return result
     }
 
     mutating func visitInlineHTML(_ inlineHTML: InlineHTML) -> String {
-        sanitizeRawHTML(inlineHTML.rawHTML)
+        let rawHTML = WikiLinkEscapes.restoreText(
+            inlineHTML.rawHTML,
+            placeholder: escapedWikiLinkPlaceholder,
+            includeBackslash: true
+        )
+        return sanitizeRawHTML(rawHTML)
     }
 
     private func sanitizeRawHTML(_ rawHTML: String) -> String {
@@ -417,7 +479,12 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     private mutating func uniqueHeadingID(for heading: Heading) -> String {
-        let base = slugifiedHeadingID(from: heading.plainText)
+        let headingText = WikiLinkEscapes.restoreText(
+            heading.plainText,
+            placeholder: escapedWikiLinkPlaceholder,
+            includeBackslash: true
+        )
+        let base = slugifiedHeadingID(from: headingText)
         let count = headingIDCounts[base, default: 0]
         let identifier = count == 0 ? base : "\(base)-\(count)"
         headingIDCounts[base] = count + 1
