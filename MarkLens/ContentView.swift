@@ -6,9 +6,20 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
+    @Environment(\.openDocument) private var openDocument
+    @EnvironmentObject private var localDocumentAccess: LocalDocumentAccess
     @ObservedObject var document: MarkdownDocument
+    let fileURL: URL?
+#if os(macOS)
+    @State private var pendingLocalDocumentURL: URL?
+#endif
+    @State private var localDocumentError: String?
     @State private var isPrintRequested = false
     @State private var isRawEditing = false
     @State private var showFind = false
@@ -21,14 +32,26 @@ struct ContentView: View {
     @State private var previewFindMatchCount = 0
     @State private var previewFindCurrentIndex = 0
 
-    init(document: MarkdownDocument) {
+    init(document: MarkdownDocument, fileURL: URL? = nil) {
         self.document = document
+        self.fileURL = fileURL
     }
 
     var body: some View {
         ZStack {
             MarkdownWebView(
                 html: document.renderedHTML,
+                documentURL: fileURL,
+                openDocument: { url in
+                    try await openDocument(at: url)
+                },
+                requestLocalDocumentAccess: { url, errorDescription in
+#if os(macOS)
+                    handleLocalDocumentOpenFailure(url, errorDescription: errorDescription)
+#else
+                    localDocumentError = errorDescription
+#endif
+                },
                 printRequested: $isPrintRequested,
                 findMatchCount: $previewFindMatchCount,
                 findCurrentIndex: $previewFindCurrentIndex,
@@ -176,6 +199,27 @@ struct ContentView: View {
                 isPreviewFindPresented = false
             }
         }
+        .alert("Allow Access to Linked Documents?", isPresented: localAccessAlertPresented) {
+#if os(macOS)
+            Button("Choose \(localAccessFolderName) Folder") {
+                chooseLocalAccessFolder()
+            }
+            Button("Cancel", role: .cancel) {
+                pendingLocalDocumentURL = nil
+            }
+#endif
+        } message: {
+#if os(macOS)
+            Text(localAccessExplanation)
+#endif
+        }
+        .alert("Unable to Open Linked Document", isPresented: localErrorAlertPresented) {
+            Button("OK", role: .cancel) {
+                localDocumentError = nil
+            }
+        } message: {
+            Text(localDocumentError ?? "The linked document could not be opened.")
+        }
 #if os(macOS)
         .focusedSceneValue(\.printAction, PrintAction {
             isPrintRequested = true
@@ -230,6 +274,99 @@ struct ContentView: View {
         previewFindMatchCount = 0
         previewFindCurrentIndex = 0
     }
+
+    private var localAccessAlertPresented: Binding<Bool> {
+#if os(macOS)
+        Binding(
+            get: { pendingLocalDocumentURL != nil },
+            set: { if !$0 { pendingLocalDocumentURL = nil } }
+        )
+#else
+        .constant(false)
+#endif
+    }
+
+    private var localErrorAlertPresented: Binding<Bool> {
+        Binding(
+            get: { localDocumentError != nil },
+            set: { if !$0 { localDocumentError = nil } }
+        )
+    }
+
+#if os(macOS)
+    private var localAccessFolderURL: URL? {
+        guard let targetURL = pendingLocalDocumentURL else { return nil }
+        let documentFolder = fileURL?.deletingLastPathComponent().standardizedFileURL
+        if let documentFolder, LocalDocumentAccess.contains(targetURL, in: documentFolder) {
+            return documentFolder
+        }
+        return targetURL.deletingLastPathComponent().standardizedFileURL
+    }
+
+    private var localAccessFolderName: String {
+        localAccessFolderURL?.lastPathComponent ?? "Containing"
+    }
+
+    private var localAccessExplanation: String {
+        guard let targetURL = pendingLocalDocumentURL else { return "" }
+        return "\(targetURL.lastPathComponent) is inside the \(localAccessFolderName) folder. macOS requires your permission before MarkLens can open linked files in this folder. Access will be limited to \(localAccessFolderName) and used only for local document links."
+    }
+
+    private func chooseLocalAccessFolder() {
+        guard let targetURL = pendingLocalDocumentURL,
+              let expectedFolder = localAccessFolderURL else { return }
+        pendingLocalDocumentURL = nil
+
+        let panel = NSOpenPanel()
+        panel.title = "Allow Access to Linked Documents"
+        panel.message = "Allow MarkLens to access the current \(expectedFolder.lastPathComponent) folder."
+        panel.prompt = "Allow Access"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = expectedFolder
+
+        panel.begin { response in
+            guard response == .OK, let selectedFolder = panel.url else { return }
+            guard LocalDocumentAccess.sameFolder(selectedFolder, expectedFolder) else {
+                selectedFolder.stopAccessingSecurityScopedResource()
+                localDocumentError = "Choose the \(expectedFolder.lastPathComponent) folder to open \(targetURL.lastPathComponent)."
+                return
+            }
+
+            do {
+                try localDocumentAccess.authorize(folder: selectedFolder)
+                Task {
+                    do {
+                        try await openDocument(at: targetURL)
+                    } catch {
+                        localDocumentError = error.localizedDescription
+                    }
+                }
+            } catch {
+                localDocumentError = error.localizedDescription
+            }
+        }
+    }
+
+    private func handleLocalDocumentOpenFailure(_ url: URL, errorDescription: String) {
+        guard isSupportedMarkdownDocument(url) else {
+            localDocumentError = "\(url.lastPathComponent) is not a supported markdown document."
+            return
+        }
+        if localDocumentAccess.hasAccess(to: url) {
+            localDocumentError = errorDescription
+        } else {
+            pendingLocalDocumentURL = url
+        }
+    }
+
+    private func isSupportedMarkdownDocument(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
+        return MarkdownDocument.readableContentTypes.contains { type.conforms(to: $0) }
+    }
+#endif
 }
 
 private extension View {
@@ -347,4 +484,5 @@ private struct PreviewFindBar: View {
 
 #Preview {
     ContentView(document: MarkdownDocument())
+        .environmentObject(LocalDocumentAccess())
 }

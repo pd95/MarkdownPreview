@@ -12,6 +12,7 @@ import AppKit
 
 @main
 struct MarkLensApp: App {
+    @StateObject private var localDocumentAccess = LocalDocumentAccess()
 #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 #endif
@@ -20,7 +21,8 @@ struct MarkLensApp: App {
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
-            ContentView(document: file.document)
+            ContentView(document: file.document, fileURL: file.fileURL)
+                .environmentObject(localDocumentAccess)
 #if os(macOS)
                 .onAppear {
                     // Make sure the app stops after the last window has been closed
@@ -48,6 +50,11 @@ struct MarkLensApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About MarkLens") {
                     showAboutPanel()
+                }
+            }
+            CommandMenu("Permissions") {
+                Button("Forget Linked Folder Access") {
+                    localDocumentAccess.revokeAll()
                 }
             }
         }

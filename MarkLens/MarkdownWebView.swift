@@ -14,6 +14,9 @@ typealias PlatformView = UIView
 struct MarkdownWebView: PlatformViewRepresentable {
 
     var html: String
+    var documentURL: URL?
+    var openDocument: (URL) async throws -> Void
+    var requestLocalDocumentAccess: (URL, String) -> Void
     @Binding var printRequested: Bool
     @Binding var findMatchCount: Int
     @Binding var findCurrentIndex: Int
@@ -21,10 +24,15 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var findRequest: Int
     var findBackwards: Bool
     var findAnchorRequest: Int
-    private var baseURL: URL? { Bundle.main.resourceURL }
+    private var baseURL: URL? {
+        documentURL
+    }
 
     init(
         html: String,
+        documentURL: URL? = nil,
+        openDocument: @escaping (URL) async throws -> Void = { _ in },
+        requestLocalDocumentAccess: @escaping (URL, String) -> Void = { _, _ in },
         printRequested: Binding<Bool> = .constant(false),
         findMatchCount: Binding<Int> = .constant(0),
         findCurrentIndex: Binding<Int> = .constant(0),
@@ -34,6 +42,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
         findAnchorRequest: Int = 0
     ) {
         self.html = html
+        self.documentURL = documentURL
+        self.openDocument = openDocument
+        self.requestLocalDocumentAccess = requestLocalDocumentAccess
         self._printRequested = printRequested
         self._findMatchCount = findMatchCount
         self._findCurrentIndex = findCurrentIndex
@@ -59,7 +70,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         webView.allowsLinkPreview = false
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
-        context.coordinator.latestHash = html.hashValue
+        context.coordinator.latestHash = contentHash
 
 #if DEBUG && os(macOS)
         webView.isInspectable = true
@@ -116,6 +127,13 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     // MARK: - Coordinator
 
+    private var contentHash: Int {
+        var hasher = Hasher()
+        hasher.combine(html)
+        hasher.combine(documentURL)
+        return hasher.finalize()
+    }
+
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: MarkdownWebView
         weak var webView: WKWebView?
@@ -135,7 +153,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         }
 
         func updateState() {
-            let newHash = parent.html.hashValue
+            let newHash = parent.contentHash
             let markdownChanged = newHash != latestHash
             let findTermChanged = parent.findTerm != latestFindTerm
             let findChanged = findTermChanged || parent.findRequest != latestFindRequest
@@ -319,7 +337,21 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 return
             }
 
-            openExternalURL(url)
+            if url.isFileURL {
+                guard let documentURL = urlWithoutFragment(url) else {
+                    decisionHandler(.cancel)
+                    return
+                }
+                Task { @MainActor in
+                    do {
+                        try await parent.openDocument(documentURL)
+                    } catch {
+                        parent.requestLocalDocumentAccess(documentURL, error.localizedDescription)
+                    }
+                }
+            } else {
+                openExternalURL(url)
+            }
             decisionHandler(.cancel)
         }
 
