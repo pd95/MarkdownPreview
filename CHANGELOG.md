@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Added support for local Markdown links and linked images, resolved relative to the current document.
+- Added privacy-focused folder access prompts with persistent permissions that can be managed in Settings.
+- Added wiki-style links using `[[note]]`, `[[folder/note]]`, and `[[note|Display text]]` syntax.
+- Added recursive wiki-page discovery within a selected folder, including a searchable chooser for duplicate names.
+- Added in-place wiki browsing with Back and Forward navigation while keeping linked pages read-only.
+
 ## 1.1.0
 
 - Renamed the app from MarkdownPreview to MarkLens.
