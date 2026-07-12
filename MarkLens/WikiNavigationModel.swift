@@ -5,6 +5,7 @@ import MarkdownPipeline
 struct WikiPage: Equatable, Sendable {
     let url: URL
     let html: String
+    let resources: [HTMLResource]
     let containsWikiLinks: Bool
     let displayPath: String
     let estimatedByteCount: Int
@@ -203,9 +204,12 @@ enum WikiPageLoader {
             return .success(WikiPage(
                 url: url,
                 html: document.html,
+                resources: document.resources,
                 containsWikiLinks: document.containsWikiLinks,
                 displayPath: WikiLinkResolver().relativePath(of: url, in: wikiRoot),
-                estimatedByteCount: document.html.utf8.count
+                estimatedByteCount: document.html.utf8.count + document.resources.reduce(0) {
+                    $0 + $1.data.count
+                }
             ))
         } catch {
             return .failure("Unable to load \(url.lastPathComponent): \(error.localizedDescription)")

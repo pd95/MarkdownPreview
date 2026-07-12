@@ -10,13 +10,26 @@ import QuickLookUI
 #endif
 import QuickLook
 import MarkdownPipeline
+import UniformTypeIdentifiers
 
 class PreviewProvider: QLPreviewProvider, QLPreviewingController {
 
     func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
-        let reply = QLPreviewReply(dataOfContentType: .html, contentSize: .defaultWindowSize) { [self] _ in
+        let reply = QLPreviewReply(dataOfContentType: .html, contentSize: .defaultWindowSize) { [self] reply in
             let document = try self.renderHTML(for: request.fileURL)
-            return document.html.data(using: .utf8) ?? Data()
+            var html = document.html
+            var attachments: [String: QLPreviewReplyAttachment] = [:]
+            for resource in document.resources {
+                let identifier = resource.contentIdentifier
+                html = html.replacingOccurrences(of: resource.url.absoluteString, with: "cid:\(identifier)")
+                let contentType = UTType(mimeType: resource.contentType) ?? .data
+                attachments[identifier] = QLPreviewReplyAttachment(
+                    data: resource.data,
+                    contentType: contentType
+                )
+            }
+            reply.attachments = attachments
+            return html.data(using: .utf8) ?? Data()
         }
 
         return reply

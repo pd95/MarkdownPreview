@@ -1,8 +1,286 @@
+import Foundation
 import Testing
 @testable import MarkdownPipeline
 
 @Suite("HTML Rendering")
 struct MarkdownPipelineHTMLRenderingTests {
+    @Test func recognizesGitHubMathSyntax() throws {
+        let input = #"Inline $\rightarrow$ and $`\frac{1}{2}`$."#
+        let protected = MathSyntaxProtector().protect(in: input)
+
+        #expect(protected.expressions.count == 2)
+        #expect(protected.expressions.values.contains { $0.source == #"\rightarrow"# })
+        #expect(protected.expressions.values.contains { $0.source == #"\frac{1}{2}"# })
+        #expect(protected.expressions.values.allSatisfy { $0.displayMode == false })
+    }
+
+    @Test func recognizesMultilineDisplayMath() {
+        let input = """
+        Before
+
+        $$
+        E = mc^2
+        $$
+
+        After
+        """
+        let protected = MathSyntaxProtector().protect(in: input)
+
+        #expect(protected.expressions.count == 1)
+        #expect(protected.expressions.values.first?.source == "E = mc^2")
+        #expect(protected.expressions.values.first?.displayMode == true)
+    }
+
+    @Test func ignoresMathSyntaxInCodeAndCurrency() {
+        let input = """
+        Cost $20 and $30.
+
+        Use `$x$`.
+
+        ```text
+        $y$
+        ```
+        """
+        let protected = MathSyntaxProtector().protect(in: input)
+
+        #expect(protected.expressions.isEmpty)
+        #expect(protected.markdown == input)
+    }
+
+    @Test func keepsMathPlaceholdersOutOfDestinationsAndRawHTMLAttributes() throws {
+        let input = """
+        [label $x$](https://example.com/$asset$)
+        ![formula $y$](images/$image$.png "title $raw$")
+        <https://example.com/$autolink$>
+        <span data-value="$attribute$">body $z$</span>
+        <span
+          data-multiline="$multiline$">
+        comparison x < y and $w$
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+
+        #expect(document.html.contains("MARKLENSMATH") == false)
+        #expect(document.html.contains("https://example.com/$asset$"))
+        #expect(document.html.contains("images/$image$.png"))
+        #expect(document.html.contains("title=\"title $raw$\""))
+        #expect(document.html.contains("data-value=\"$attribute$\""))
+        #expect(document.html.contains("data-multiline=\"$multiline$\""))
+        #expect(document.html.contains("https://example.com/$autolink$"))
+        #if !canImport(JavaScriptCore)
+        #expect(document.html.contains("label $x$"))
+        #expect(document.html.contains("alt=\"formula $y$\""))
+        #expect(document.html.contains("body $z$"))
+        #endif
+    }
+
+    @Test func keepsMathPlaceholdersOutOfReferenceDestinations() throws {
+        let input = """
+        [label $x$][reference]
+
+        [reference]: https://example.com/$asset$
+        """
+        let protected = MathSyntaxProtector().protect(in: input)
+
+        #expect(protected.expressions.count == 1)
+        #expect(protected.markdown.contains("https://example.com/$asset$"))
+    }
+
+    @Test func preservesExactMathFenceForFallback() {
+        let input = """
+          ~~~~Math custom-info
+        \\frac{
+          ~~~~
+        """
+        let protected = MathSyntaxProtector().protect(in: input)
+
+        #expect(protected.expressions.count == 1)
+        #expect(protected.expressions.values.first?.original == input)
+        #expect(protected.expressions.values.first?.source == #"\frac{"#)
+    }
+
+    @Test func fenceWithTrailingInfoDoesNotCloseCodeBlock() {
+        let input = """
+        ~~~text
+        ~~~math
+        $x$
+        ~~~
+        """
+        let protected = MathSyntaxProtector().protect(in: input)
+
+        #expect(protected.expressions.isEmpty)
+        #expect(protected.markdown == input)
+    }
+
+    @Test func normalizesNestedMarkdownFenceBeforeProtectingFollowingMath() {
+        let input = """
+        ```markdown
+        # Example
+
+        ```swift
+        let value = 1
+        ```
+
+        ```
+
+        Arrow: $\\rightarrow$
+        """
+        let normalized = MarkdownFenceNormalizer().normalize(input)
+        let protected = MathSyntaxProtector().protect(in: normalized)
+
+        #expect(protected.expressions.count == 1)
+        #expect(protected.expressions.values.first?.source == #"\rightarrow"#)
+    }
+
+    @Test func unclosedMathFenceRemainsCode() throws {
+        let input = """
+        ~~~math
+        $x$
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(input),
+            context: PipelineContext(enableCodeHighlighting: false)
+        )
+
+        #expect(document.html.contains("<pre><code class=\"lang-math\">"))
+        #expect(document.html.contains("$x$"))
+        #expect(document.html.contains("class=\"math math-display\"") == false)
+    }
+
+    @Test func indentedCodeNeverBecomesMathOrLeaksPlaceholders() throws {
+        let input = """
+            $x$
+
+        \t$y$
+
+            $$
+            E = mc^2
+            $$
+
+            ```math
+            \\rightarrow
+            ```
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(input),
+            context: PipelineContext(enableCodeHighlighting: false)
+        )
+
+        #expect(document.html.contains("MARKLENSMATH") == false)
+        #expect(document.html.contains("class=\"math math-inline\"") == false)
+        #expect(document.html.contains("class=\"math math-display\"") == false)
+        #expect(document.html.contains("$x$"))
+        #expect(document.html.contains("$y$"))
+        #expect(document.html.contains("```math"))
+        #expect(document.html.contains(#"\rightarrow"#))
+    }
+
+    @Test func preservesMathSourceWhenRendererIsUnavailable() throws {
+        #if !canImport(JavaScriptCore)
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(#"Arrow $\rightarrow$."#),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains(#"Arrow $\rightarrow$."#))
+        #endif
+    }
+
+    #if canImport(JavaScriptCore)
+    @Test func rendersStaticAccessibleKaTeXHTML() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(#"Arrow $\rightarrow$."#),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("class=\"math math-inline\""))
+        #expect(document.html.contains("class=\"katex-mathml\""))
+        #expect(document.html.contains("class=\"katex-html\""))
+        #expect(document.html.contains("<script src=") == false)
+    }
+
+    @Test func preservesMalformedTeXSource() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string(#"Broken $\frac{$ expression."#),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains(#"$\frac{$"#))
+        #expect(document.html.contains("class=\"math math-inline\"") == false)
+    }
+    #endif
+
+    @Test func treatsMathFenceAsDisplayMathInsteadOfCode() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string("""
+            ```math
+            E = mc^2
+            ```
+            """),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("<pre><code") == false)
+        #if !canImport(JavaScriptCore)
+        #expect(document.html.contains("```math"))
+        #endif
+    }
+
+    @Test func packagesKaTeXFontsForCanonicalURLs() throws {
+        let assets = try KaTeXAssets.load()
+
+        #expect(assets.resources.count == 20)
+        #expect(assets.resources.allSatisfy { $0.contentType == "font/woff2" })
+        #expect(assets.resources.allSatisfy { assets.stylesheet.contains($0.url.absoluteString) })
+        #expect(assets.stylesheet.contains("fonts/KaTeX_Main-Regular.woff") == false)
+        #expect(assets.stylesheet.contains("fonts/KaTeX_Main-Regular.ttf") == false)
+    }
+
+    @Test func standaloneHTMLInlinesPackagedFonts() throws {
+        let resource = HTMLResource(
+            identifier: "test/font.woff2",
+            contentType: "font/woff2",
+            data: Data([1, 2, 3])
+        )
+        let document = HTMLDocument(
+            html: "<style>src: url(\(resource.url.absoluteString))</style>",
+            title: nil,
+            baseURL: nil,
+            resources: [resource]
+        )
+
+        #expect(document.standaloneHTML.contains("marklens-resource://") == false)
+        #expect(document.standaloneHTML.contains("data:font/woff2;base64,"))
+    }
+
+    @Test func publicResourceIdentifiersProduceSafeURLs() {
+        let resource = HTMLResource(
+            identifier: "folder/unsafe value/☃.woff2",
+            contentType: "font/woff2",
+            data: Data()
+        )
+
+        #expect(resource.url.scheme == "marklens-resource")
+        #expect(resource.url.absoluteString.contains("%20"))
+    }
+
+    @Test func contentIdentifiersAreStableAndCollisionResistant() {
+        let first = HTMLResource(identifier: "a/b.c", contentType: "text/plain", data: Data())
+        let second = HTMLResource(identifier: "a-b-c", contentType: "text/plain", data: Data())
+
+        #expect(first.contentIdentifier != second.contentIdentifier)
+        #expect(first.contentIdentifier == "marklens-YS9iLmM")
+        #expect(first.contentIdentifier.allSatisfy {
+            $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_"
+        })
+    }
+
     @Test func rendersWikiLinksAndReportsMetadata() throws {
         let input = "See [[overview]], [[guides/start.md]], and [[open-questions|the backlog]]."
         let pipeline = MarkdownPipeline()

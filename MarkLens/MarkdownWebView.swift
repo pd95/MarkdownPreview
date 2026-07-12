@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import MarkdownPipeline
 
 #if os(macOS)
 import AppKit
@@ -14,6 +15,7 @@ typealias PlatformView = UIView
 struct MarkdownWebView: PlatformViewRepresentable {
 
     var html: String
+    var resources: [HTMLResource]
     var documentURL: URL?
     var openDocument: (URL) async throws -> Void
     var openWikiLink: (String) -> Void
@@ -33,6 +35,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     init(
         html: String,
+        resources: [HTMLResource] = [],
         documentURL: URL? = nil,
         openDocument: @escaping (URL) async throws -> Void = { _ in },
         openWikiLink: @escaping (String) -> Void = { _ in },
@@ -48,6 +51,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         findAnchorRequest: Int = 0
     ) {
         self.html = html
+        self.resources = resources
         self.documentURL = documentURL
         self.openDocument = openDocument
         self.openWikiLink = openWikiLink
@@ -69,6 +73,10 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     func makeView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        let resourceHandler = HTMLResourceSchemeHandler()
+        resourceHandler.update(resources: resources)
+        config.setURLSchemeHandler(resourceHandler, forURLScheme: Self.resourceScheme)
+        context.coordinator.resourceHandler = resourceHandler
 #if os(macOS)
         let localImageHandler = LocalImageSchemeHandler()
         localImageHandler.documentURL = documentURL
@@ -154,6 +162,11 @@ struct MarkdownWebView: PlatformViewRepresentable {
     private var contentHash: Int {
         var hasher = Hasher()
         hasher.combine(html)
+        for resource in resources {
+            hasher.combine(resource.identifier)
+            hasher.combine(resource.contentType)
+            hasher.combine(resource.data)
+        }
         hasher.combine(documentURL)
         hasher.combine(reloadRequest)
         return hasher.finalize()
@@ -162,6 +175,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: MarkdownWebView
         weak var webView: WKWebView?
+        var resourceHandler: HTMLResourceSchemeHandler?
 #if os(macOS)
         weak var localImageHandler: LocalImageSchemeHandler?
 #endif
@@ -185,6 +199,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             localImageHandler?.documentURL = parent.documentURL
             localImageHandler?.allowedImageURLs = parent.localImageURLs
 #endif
+            resourceHandler?.update(resources: parent.resources)
             let newHash = parent.contentHash
             let markdownChanged = newHash != latestHash
             let findTermChanged = parent.findTerm != latestFindTerm
@@ -423,6 +438,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
     }
 
     private static let localImageScheme = "marklens-local-image"
+    private static let resourceScheme = "marklens-resource"
 
     private var localImageURLs: Set<URL> {
         guard let documentURL,

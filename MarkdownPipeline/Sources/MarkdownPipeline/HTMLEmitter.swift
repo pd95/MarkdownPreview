@@ -1,11 +1,16 @@
 import Foundation
 
 struct HTMLEmitter {
-    func render(bodyHTML: String, title: String?, theme: PipelineContext.Theme) throws -> String {
+    func render(
+        bodyHTML: String,
+        title: String?,
+        theme: PipelineContext.Theme,
+        additionalStyles: String = ""
+    ) throws -> String {
         var template = try ResourceLoader.stringResource("template.html")
         let markdownCSS = try ResourceLoader.stringResource("markdown-style.css")
         let themeCSS = try themeStylesheet(for: theme)
-        let cssBlock = "<style>\n\(markdownCSS)\n\(themeCSS)\n</style>"
+        let cssBlock = "<style>\n\(markdownCSS)\n\(themeCSS)\n\(additionalStyles)\n</style>"
 
         template = template.replacingOccurrences(of: "{{STYLES}}", with: cssBlock)
 

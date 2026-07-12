@@ -101,10 +101,11 @@ final class WikiNavigationModelTests: XCTestCase {
         }
     }
 
-    private static func page(url: URL, root: URL, pageSize: Int = 128) -> WikiPage {
+    nonisolated private static func page(url: URL, root: URL, pageSize: Int = 128) -> WikiPage {
         WikiPage(
             url: url,
             html: String(repeating: "x", count: pageSize),
+            resources: [],
             containsWikiLinks: true,
             displayPath: url.path.replacingOccurrences(of: root.path + "/", with: ""),
             estimatedByteCount: pageSize

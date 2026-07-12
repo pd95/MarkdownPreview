@@ -52,6 +52,7 @@ struct ContentView: View {
         ZStack {
             MarkdownWebView(
                 html: displayedHTML,
+                resources: displayedResources,
                 documentURL: displayedURL,
                 openDocument: openLocalDocument,
                 openWikiLink: openWikiLink,
@@ -365,6 +366,10 @@ struct ContentView: View {
 
     private var displayedURL: URL? {
         wikiNavigation.currentPage?.url ?? fileURL
+    }
+
+    private var displayedResources: [HTMLResource] {
+        wikiNavigation.currentPage?.resources ?? document.renderedResources
     }
 
     private var displayedContainsWikiLinks: Bool {

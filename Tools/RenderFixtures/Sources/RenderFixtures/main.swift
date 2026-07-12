@@ -23,6 +23,6 @@ for path in arguments.dropFirst() {
     let outputURL = outputDirectory
         .appending(path: inputURL.deletingPathExtension().lastPathComponent)
         .appendingPathExtension("html")
-    try document.html.write(to: outputURL, atomically: true, encoding: .utf8)
+    try document.write(to: outputURL)
     print(outputURL.path)
 }

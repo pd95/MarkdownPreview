@@ -5,18 +5,34 @@ public struct HTMLDocument {
     public let title: String?
     public let baseURL: URL?
     public let containsWikiLinks: Bool
+    public let resources: [HTMLResource]
 
-    public init(html: String, title: String?, baseURL: URL?, containsWikiLinks: Bool = false) {
+    public init(
+        html: String,
+        title: String?,
+        baseURL: URL?,
+        containsWikiLinks: Bool = false,
+        resources: [HTMLResource] = []
+    ) {
         self.html = html
         self.title = title
         self.baseURL = baseURL
         self.containsWikiLinks = containsWikiLinks
+        self.resources = resources
     }
 
     @discardableResult
     public func write(to url: URL) throws -> URL {
-        try html.write(to: url, atomically: true, encoding: .utf8)
+        try standaloneHTML.write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    public var standaloneHTML: String {
+        resources.reduce(html) { result, resource in
+            let encoded = resource.data.base64EncodedString()
+            let dataURL = "data:\(resource.contentType);base64,\(encoded)"
+            return result.replacingOccurrences(of: resource.url.absoluteString, with: dataURL)
+        }
     }
 
     public func writeToTemporaryFile() throws -> URL {
