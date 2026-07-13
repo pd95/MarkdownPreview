@@ -1,14 +1,19 @@
 import Foundation
 
-public struct MarkdownPipeline {
+public struct MarkdownPipeline: Sendable {
     private let defaultTheme: PipelineContext.Theme
-    private let highlighter: HLJSHighlighter
-    private let mathRenderer: KaTeXRenderer
+    private let plugins: [any HTMLRenderingPlugin]
 
-    public init(defaultTheme: PipelineContext.Theme = .auto) {
+    /// Creates an HTML pipeline from built-in feature descriptors.
+    ///
+    /// Feature order does not affect execution order. When a feature appears more than once,
+    /// its last configuration is used.
+    public init(
+        defaultTheme: PipelineContext.Theme = .auto,
+        plugins: [HTMLFeature] = HTMLFeature.defaultHTML
+    ) {
         self.defaultTheme = defaultTheme
-        self.highlighter = HLJSHighlighter()
-        self.mathRenderer = KaTeXRenderer()
+        self.plugins = Self.makePlugins(from: plugins)
     }
 
     public static func defaultHTML(theme: PipelineContext.Theme = .auto) -> MarkdownPipeline {
@@ -24,53 +29,28 @@ public struct MarkdownPipeline {
         let extraction = FrontMatterExtractor().extract(from: markdown)
         let mergedContext = merge(context: context, frontMatter: extraction.frontMatter)
 
+        let coordinator = HTMLPluginCoordinator(plugins: plugins, context: mergedContext)
         let normalizedMarkdown = MarkdownFenceNormalizer().normalize(extraction.bodyMarkdown)
-        let protectedMath = MathSyntaxProtector().protect(in: normalizedMarkdown)
-        let protectedMarkdown = WikiLinkEscapes.protect(in: protectedMath.markdown)
-        let document = SwiftMarkdownParser().parse(markdown: protectedMarkdown.markdown)
-        let highlights: [Int: CodeHighlightResult]
-        if mergedContext.enableCodeHighlighting {
-            highlights = CodeBlockHighlighter(
-                highlighter: highlighter,
-                languageSubset: mergedContext.highlightLanguageSubset
-            ).highlights(for: document)
-        } else {
-            highlights = [:]
-        }
+        let preparedMarkdown = coordinator.preprocess(normalizedMarkdown)
+        let document = SwiftMarkdownParser().parse(markdown: preparedMarkdown)
         let renderedBody = HTMLVisitor.render(
             document: document,
             keepLineBreaks: true,
-            codeBlockHighlights: highlights,
-            escapedWikiLinkPlaceholder: protectedMarkdown.placeholder,
-            mathExpressions: protectedMath.expressions,
-            mathRenderer: mathRenderer,
-            mermaidRendering: mergedContext.mermaidRendering
+            plugins: coordinator
         )
-        let katexAssets: KaTeXAssets?
-        if renderedBody.containsRenderedMath {
-            katexAssets = try KaTeXAssets.load()
-        } else {
-            katexAssets = nil
-        }
-        let mermaidAssets: MermaidAssets?
-        if renderedBody.containsMermaidDiagrams {
-            mermaidAssets = try MermaidAssets.load(theme: mergedContext.theme)
-        } else {
-            mermaidAssets = nil
-        }
+        let contribution = try coordinator.contribution()
         let html = try HTMLEmitter().render(
             bodyHTML: renderedBody.html,
             title: mergedContext.title,
-            theme: mergedContext.theme,
-            additionalStyles: katexAssets?.stylesheet ?? "",
-            additionalScripts: mermaidAssets?.scripts ?? ""
+            additionalStyles: contribution.styles,
+            additionalScripts: contribution.scripts
         )
         return HTMLDocument(
             html: html,
             title: mergedContext.title,
             baseURL: mergedContext.baseURL,
-            containsWikiLinks: renderedBody.containsWikiLinks,
-            resources: (katexAssets?.resources ?? []) + (mermaidAssets?.resources ?? [])
+            containsWikiLinks: contribution.containsWikiLinks,
+            resources: contribution.resources
         )
     }
 
@@ -87,6 +67,41 @@ public struct MarkdownPipeline {
             merged.theme = defaultTheme
         }
         return merged
+    }
+
+    private static func makePlugins(from features: [HTMLFeature]) -> [any HTMLRenderingPlugin] {
+        var includesWikiLinks = false
+        var includesMath = false
+        var highlightingSubset: [String]?
+        var mermaidRendering: PipelineContext.MermaidRendering?
+
+        for feature in features {
+            switch feature.configuration {
+            case .wikiLinks:
+                includesWikiLinks = true
+            case .syntaxHighlighting(let languageSubset):
+                highlightingSubset = languageSubset
+            case .math:
+                includesMath = true
+            case .mermaid(let rendering):
+                mermaidRendering = rendering
+            }
+        }
+
+        var plugins: [any HTMLRenderingPlugin] = []
+        if includesMath {
+            plugins.append(MathHTMLPlugin())
+        }
+        if includesWikiLinks {
+            plugins.append(WikiLinkHTMLPlugin())
+        }
+        if let mermaidRendering {
+            plugins.append(MermaidHTMLPlugin(rendering: mermaidRendering))
+        }
+        if let highlightingSubset {
+            plugins.append(SyntaxHighlightingHTMLPlugin(languageSubset: highlightingSubset))
+        }
+        return plugins
     }
 }
 

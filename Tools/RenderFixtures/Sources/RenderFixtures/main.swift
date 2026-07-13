@@ -10,7 +10,10 @@ guard arguments.count >= 2 else {
 let outputDirectory = URL(filePath: String(arguments.first!))
 try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
-let pipeline = MarkdownPipeline.defaultHTML(theme: .auto)
+let pipeline = MarkdownPipeline(
+    defaultTheme: .auto,
+    plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid()]
+)
 
 for path in arguments.dropFirst() {
     let inputURL = URL(filePath: String(path))

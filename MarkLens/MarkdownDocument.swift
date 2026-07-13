@@ -19,6 +19,10 @@ final class MarkdownDocument: ReferenceFileDocument {
     @Published private(set) var containsWikiLinks: Bool
     let filename: String?
 
+    private static let renderingPipeline = MarkdownPipeline(
+        plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid()]
+    )
+
     init(text: String = "") {
         self.text = text
         self.filename = nil
@@ -75,9 +79,8 @@ final class MarkdownDocument: ReferenceFileDocument {
         from markdown: String,
         title: String?
     ) -> (html: String, containsWikiLinks: Bool, resources: [HTMLResource]) {
-        let pipeline = MarkdownPipeline.defaultHTML()
         let context = PipelineContext(title: title)
-        if let document = try? pipeline.renderHTML(from: .string(markdown), context: context) {
+        if let document = try? renderingPipeline.renderHTML(from: .string(markdown), context: context) {
             return (document.html, document.containsWikiLinks, document.resources)
         }
         return (renderFailureHTML, false, [])

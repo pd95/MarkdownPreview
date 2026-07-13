@@ -346,48 +346,6 @@ img {
     margin: 0.5rem 0;
 }
 
-/* Mermaid diagrams */
-.mermaid-block {
-    margin: 1rem 0;
-    max-width: 100%;
-    overflow-x: auto;
-}
-
-.mermaid-block.is-rendered {
-    text-align: center;
-}
-
-.mermaid-source-fallback {
-    background: #fff4d6;
-    border: 1px solid #d89b21;
-    border-radius: 6px;
-    padding: 1rem;
-}
-
-.mermaid-source-fallback pre {
-    background: #fffaf0;
-    border-color: #d89b21;
-    margin-bottom: 0;
-}
-
-.mermaid-block svg {
-    display: inline-block;
-    height: auto;
-    max-width: 100%;
-}
-
-.mermaid-hint,
-.mermaid-error {
-    color: #684500;
-    font-size: 0.875rem;
-    margin: 0 0 0.5rem;
-    padding: 0;
-}
-
-.mermaid-error {
-    color: #c62828;
-}
-
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
     body {
@@ -436,26 +394,4 @@ img {
         border-top-color: var(--separator-dark);
     }
 
-    .mermaid-hint,
-    .mermaid-error {
-        color: var(--blockquote-text-dark);
-    }
-
-    .mermaid-source-fallback {
-        background: #3b2d0d;
-        border-color: #b78319;
-    }
-
-    .mermaid-source-fallback pre {
-        background: #241d0d;
-        border-color: #b78319;
-    }
-
-    .mermaid-source-fallback .mermaid-hint {
-        color: #f2cf7a;
-    }
-
-    .mermaid-error {
-        color: #ff8a80;
-    }
 }

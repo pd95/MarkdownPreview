@@ -165,7 +165,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         for resource in resources {
             hasher.combine(resource.identifier)
             hasher.combine(resource.contentType)
-            hasher.combine(resource.data)
+            hasher.combine(resource.revision)
         }
         hasher.combine(documentURL)
         hasher.combine(reloadRequest)

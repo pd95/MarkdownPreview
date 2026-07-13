@@ -22,26 +22,15 @@ extension String {
 struct HTMLVisitor: MarkupVisitor {
     struct RenderResult {
         let html: String
-        let containsWikiLinks: Bool
-        let containsRenderedMath: Bool
-        let containsMermaidDiagrams: Bool
     }
 
     var softBreak: String
     var skipParagraphTags = false
     var currentTable: Table?
     var currentColumnIndex = 0
-    var codeBlockIndex = 0
-    var codeBlockHighlights: [Int: CodeHighlightResult]
     var headingIDCounts: [String: Int] = [:]
-    var containsWikiLinks = false
-    var escapedWikiLinkPlaceholder: String?
     var linkDepth = 0
-    var containsRenderedMath = false
-    var containsMermaidDiagrams = false
-    let mermaidRendering: PipelineContext.MermaidRendering
-    let mathExpressions: [String: ProtectedMath.Expression]
-    let mathRenderer: KaTeXRenderer
+    let plugins: HTMLPluginCoordinator
 
     static let disallowedRawHTMLTags = [
         "title",
@@ -57,44 +46,23 @@ struct HTMLVisitor: MarkupVisitor {
 
     init(
         keepLineBreaks: Bool = false,
-        codeBlockHighlights: [Int: CodeHighlightResult] = [:],
-        escapedWikiLinkPlaceholder: String? = nil,
-        mathExpressions: [String: ProtectedMath.Expression] = [:],
-        mathRenderer: KaTeXRenderer = KaTeXRenderer(),
-        mermaidRendering: PipelineContext.MermaidRendering = .rendered
+        plugins: HTMLPluginCoordinator
     ) {
         softBreak = keepLineBreaks ? "<br>" : "\n"
-        self.codeBlockHighlights = codeBlockHighlights
-        self.escapedWikiLinkPlaceholder = escapedWikiLinkPlaceholder
-        self.mathExpressions = mathExpressions
-        self.mathRenderer = mathRenderer
-        self.mermaidRendering = mermaidRendering
+        self.plugins = plugins
     }
 
     static func render(
         document: Document,
         keepLineBreaks: Bool = false,
-        codeBlockHighlights: [Int: CodeHighlightResult] = [:],
-        escapedWikiLinkPlaceholder: String? = nil,
-        mathExpressions: [String: ProtectedMath.Expression] = [:],
-        mathRenderer: KaTeXRenderer = KaTeXRenderer(),
-        mermaidRendering: PipelineContext.MermaidRendering = .rendered
+        plugins: HTMLPluginCoordinator
     ) -> RenderResult {
         var visitor = HTMLVisitor(
             keepLineBreaks: keepLineBreaks,
-            codeBlockHighlights: codeBlockHighlights,
-            escapedWikiLinkPlaceholder: escapedWikiLinkPlaceholder,
-            mathExpressions: mathExpressions,
-            mathRenderer: mathRenderer,
-            mermaidRendering: mermaidRendering
+            plugins: plugins
         )
         let html = visitor.visit(document)
-        return RenderResult(
-            html: html,
-            containsWikiLinks: visitor.containsWikiLinks,
-            containsRenderedMath: visitor.containsRenderedMath,
-            containsMermaidDiagrams: visitor.containsMermaidDiagrams
-        )
+        return RenderResult(html: html)
     }
 
     mutating func defaultVisit(_ markup: any Markup) -> String {
@@ -106,15 +74,14 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitText(_ text: Text) -> String {
-        renderTextAndMath(text.plainText, renderWikiLinks: linkDepth == 0)
+        plugins.renderText(text.plainText, allowsWikiLinks: linkDepth == 0)
     }
 
     mutating func visitParagraph(_ paragraph: Paragraph) -> String {
         if paragraph.childCount == 1,
            let text = paragraph.child(at: 0) as? Text,
-           let expression = mathExpressions[text.plainText],
-           expression.displayMode {
-            return renderMath(expression) + "\n"
+           let rendered = plugins.renderStandaloneParagraph(text.plainText) {
+            return rendered
         }
         var result: String
         let shouldSkipParagraph = skipParagraphTags
@@ -165,7 +132,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitLink(_ link: Link) -> String {
-        let destination = sanitizedURL(restoreMathSource(in: link.destination ?? ""), fallback: "#")
+        let destination = sanitizedURL(plugins.restoreLiteral(link.destination ?? ""), fallback: "#")
             .encodedHTMLAttribute()
         var result = "<a href=\"\(destination)\">"
         linkDepth += 1
@@ -178,7 +145,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitImage(_ image: Image) -> String {
-        let sanitizedSource = sanitizedImageURL(restoreMathSource(in: image.source ?? ""), fallback: "")
+        let sanitizedSource = sanitizedImageURL(plugins.restoreLiteral(image.source ?? ""), fallback: "")
         let source = sanitizedSource.encodedHTMLAttribute()
         var result = "<img src=\"\(source)\""
         if isLocalImageURL(sanitizedSource),
@@ -190,12 +157,12 @@ struct HTMLVisitor: MarkupVisitor {
             result += " alt=\""
             for child in image.children {
                 if let plainTextMarkup = child as? PlainTextConvertibleMarkup {
-                    result += restoreMathSource(in: plainTextMarkup.plainText).encodedHTMLAttribute()
+                    result += plugins.restoreLiteral(plainTextMarkup.plainText).encodedHTMLAttribute()
                 }
             }
             result += "\""
         }
-        result += image.title.map { " title=\"\(restoreMathSource(in: $0).encodedHTMLAttribute())\"" } ?? ""
+        result += image.title.map { " title=\"\(plugins.restoreLiteral($0).encodedHTMLAttribute())\"" } ?? ""
         result += ">"
         return result
     }
@@ -211,11 +178,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     func visitInlineCode(_ inlineCode: InlineCode) -> String {
-        let code = WikiLinkEscapes.restoreText(
-            inlineCode.code,
-            placeholder: escapedWikiLinkPlaceholder,
-            includeBackslash: true
-        )
+        let code = plugins.restoreLiteral(inlineCode.code)
         return "<code>\(code.encodedHTMLEntities())</code>"
     }
 
@@ -242,112 +205,16 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
-        let highlight = codeBlockHighlights[codeBlockIndex]
-        codeBlockIndex += 1
-        if isMermaidLanguage(codeBlock.language) {
-            return renderMermaidBlock(codeBlock.code)
-        }
-        if let highlight {
-            let languageClass = highlight.language.map { " language-\($0)" } ?? ""
-            let literalHTML = WikiLinkEscapes.restoreText(
-                highlight.html,
-                placeholder: escapedWikiLinkPlaceholder,
-                includeBackslash: true
-            )
-            return "<pre><code class=\"hljs\(languageClass)\">\(restoreMathSource(in: literalHTML))</code></pre>\n"
+        if let rendered = plugins.renderCodeBlock(codeBlock) {
+            return rendered
         }
 
         var result = "<pre><code class=\"lang-\(codeBlock.language ?? "plaintext")\">"
-        let literalCode = WikiLinkEscapes.restoreText(
-            codeBlock.code,
-            placeholder: escapedWikiLinkPlaceholder,
-            includeBackslash: true
-        )
-        result += restoreMathSource(in: literalCode)
+        result += plugins.restoreLiteral(codeBlock.code)
             .trimmingCharacters(in: .newlines)
             .encodedHTMLEntities()
         result += "\n</code></pre>\n"
         return result
-    }
-
-    private mutating func renderMermaidBlock(_ source: String) -> String {
-        let escapedSource = restoreMathSource(in: source)
-            .trimmingCharacters(in: .newlines)
-            .encodedHTMLEntities()
-        switch mermaidRendering {
-        case .rendered:
-            containsMermaidDiagrams = true
-            return """
-            <div class="mermaid-block" data-mermaid-diagram>
-            <pre class="mermaid-source"><code class="language-mermaid">\(escapedSource)\n</code></pre>
-            <p class="mermaid-error" role="status" hidden>Could not render Mermaid diagram. Showing source.</p>
-            </div>
-            """ + "\n"
-        case .sourceWithAppHint:
-            return """
-            <div class="mermaid-block mermaid-source-fallback">
-            <p class="mermaid-hint"><strong>Quick Look source</strong> — open in MarkLens to render this Mermaid diagram</p>
-            <pre class="mermaid-source"><code class="lang-plaintext">\(escapedSource)\n</code></pre>
-            </div>
-            """ + "\n"
-        }
-    }
-
-    private func isMermaidLanguage(_ language: String?) -> Bool {
-        language?
-            .split(whereSeparator: { $0.isWhitespace })
-            .first?
-            .lowercased() == "mermaid"
-    }
-
-    private mutating func renderTextAndMath(_ text: String, renderWikiLinks: Bool) -> String {
-        var result = ""
-        var remaining = text[...]
-        while let match = mathExpressions.values
-            .compactMap({ expression -> (ProtectedMath.Expression, Range<String.Index>)? in
-                guard let range = remaining.range(of: expression.token) else { return nil }
-                return (expression, range)
-            })
-            .min(by: { $0.1.lowerBound < $1.1.lowerBound }) {
-            let plain = String(remaining[..<match.1.lowerBound])
-            result += renderPlainText(plain, renderWikiLinks: renderWikiLinks)
-            result += renderMath(match.0)
-            remaining = remaining[match.1.upperBound...]
-        }
-        result += renderPlainText(String(remaining), renderWikiLinks: renderWikiLinks)
-        return result
-    }
-
-    private mutating func renderPlainText(_ text: String, renderWikiLinks: Bool) -> String {
-        guard renderWikiLinks else {
-            return WikiLinkEscapes.restoreText(
-                text,
-                placeholder: escapedWikiLinkPlaceholder,
-                includeBackslash: false
-            ).encodedHTMLEntities()
-        }
-        let rendered = WikiLinkRenderer.render(
-            text,
-            escapedWikiLinkPlaceholder: escapedWikiLinkPlaceholder
-        )
-        containsWikiLinks = containsWikiLinks || rendered.containsWikiLinks
-        return rendered.html
-    }
-
-    private func restoreMathSource(in text: String) -> String {
-        mathExpressions.values.reduce(text) { result, expression in
-            result.replacingOccurrences(of: expression.token, with: expression.original)
-        }
-    }
-
-    private mutating func renderMath(_ expression: ProtectedMath.Expression) -> String {
-        guard let html = mathRenderer.render(expression.source, displayMode: expression.displayMode) else {
-            return expression.original.encodedHTMLEntities()
-        }
-        containsRenderedMath = true
-        let tag = expression.displayMode ? "div" : "span"
-        let mode = expression.displayMode ? "display" : "inline"
-        return "<\(tag) class=\"math math-\(mode)\">\(html)</\(tag)>"
     }
 
     func visitThematicBreak(_ thematicBreak: ThematicBreak) -> String {
@@ -397,22 +264,14 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitHTMLBlock(_ html: HTMLBlock) -> String {
-        let rawHTML = restoreMathSource(in: WikiLinkEscapes.restoreText(
-            html.rawHTML,
-            placeholder: escapedWikiLinkPlaceholder,
-            includeBackslash: true
-        ))
+        let rawHTML = plugins.restoreLiteral(html.rawHTML)
         var result = sanitizeRawHTML(rawHTML)
         result += "\n"
         return result
     }
 
     mutating func visitInlineHTML(_ inlineHTML: InlineHTML) -> String {
-        let rawHTML = restoreMathSource(in: WikiLinkEscapes.restoreText(
-            inlineHTML.rawHTML,
-            placeholder: escapedWikiLinkPlaceholder,
-            includeBackslash: true
-        ))
+        let rawHTML = plugins.restoreLiteral(inlineHTML.rawHTML)
         return sanitizeRawHTML(rawHTML)
     }
 
@@ -582,11 +441,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     private mutating func uniqueHeadingID(for heading: Heading) -> String {
-        let headingText = WikiLinkEscapes.restoreText(
-            heading.plainText,
-            placeholder: escapedWikiLinkPlaceholder,
-            includeBackslash: true
-        )
+        let headingText = plugins.restoreLiteral(heading.plainText)
         let base = slugifiedHeadingID(from: headingText)
         let count = headingIDCounts[base, default: 0]
         let identifier = count == 0 ? base : "\(base)-\(count)"

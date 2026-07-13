@@ -13,6 +13,13 @@ import MarkdownPipeline
 import UniformTypeIdentifiers
 
 class PreviewProvider: QLPreviewProvider, QLPreviewingController {
+    private static let pipeline = MarkdownPipeline(
+        plugins: [
+            .syntaxHighlighting(),
+            .math(),
+            .mermaid(rendering: .sourceWithAppHint),
+        ]
+    )
 
     func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
         let reply = QLPreviewReply(dataOfContentType: .html, contentSize: .defaultWindowSize) { [self] reply in
@@ -36,11 +43,7 @@ class PreviewProvider: QLPreviewProvider, QLPreviewingController {
     }
 
     private func renderHTML(for url: URL) throws -> HTMLDocument {
-        let pipeline = MarkdownPipeline.defaultHTML()
-        let context = PipelineContext(
-            title: url.lastPathComponent,
-            mermaidRendering: .sourceWithAppHint
-        )
-        return try pipeline.renderHTML(from: .file(url), context: context)
+        let context = PipelineContext(title: url.lastPathComponent)
+        return try Self.pipeline.renderHTML(from: .file(url), context: context)
     }
 }

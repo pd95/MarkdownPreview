@@ -194,10 +194,13 @@ final class WikiNavigationModel: ObservableObject {
 }
 
 enum WikiPageLoader {
+    private static let pipeline = MarkdownPipeline(
+        plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid()]
+    )
+
     static func load(url: URL, wikiRoot: URL) -> WikiPageLoadResult {
         guard isCurrentTaskCancelled() == false else { return .cancelled }
         do {
-            let pipeline = MarkdownPipeline.defaultHTML()
             let context = PipelineContext(title: url.lastPathComponent)
             let document = try pipeline.renderHTML(from: .file(url), context: context)
             guard isCurrentTaskCancelled() == false else { return .cancelled }
@@ -207,9 +210,7 @@ enum WikiPageLoader {
                 resources: document.resources,
                 containsWikiLinks: document.containsWikiLinks,
                 displayPath: WikiLinkResolver().relativePath(of: url, in: wikiRoot),
-                estimatedByteCount: document.html.utf8.count + document.resources.reduce(0) {
-                    $0 + $1.data.count
-                }
+                estimatedByteCount: document.html.utf8.count
             ))
         } catch {
             return .failure("Unable to load \(url.lastPathComponent): \(error.localizedDescription)")
