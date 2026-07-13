@@ -17,6 +17,8 @@ struct ContentView: View {
     @Environment(\.openDocument) private var openDocument
 #endif
     @EnvironmentObject private var localDocumentAccess: LocalDocumentAccess
+    @AppStorage(AppearancePreferences.customCSSKey)
+    private var customCSS = AppearancePreferences.starterCSS
     @ObservedObject var document: MarkdownDocument
     @StateObject private var wikiNavigation: WikiNavigationModel
     let fileURL: URL?
@@ -53,6 +55,7 @@ struct ContentView: View {
             MarkdownWebView(
                 html: displayedHTML,
                 resources: displayedResources,
+                customCSS: customCSS,
                 documentURL: displayedURL,
                 openDocument: openLocalDocument,
                 openWikiLink: openWikiLink,

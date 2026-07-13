@@ -6,6 +6,7 @@ struct HTMLPluginContribution {
     var scripts = ""
     var resources: [HTMLResource] = []
     var containsWikiLinks = false
+    var overrideStyles: String?
 }
 
 struct HTMLTextEnvironment {
@@ -109,6 +110,9 @@ final class HTMLPluginCoordinator {
             }
             result.resources += contribution.resources
             result.containsWikiLinks = result.containsWikiLinks || contribution.containsWikiLinks
+            if let overrideStyles = contribution.overrideStyles {
+                result.overrideStyles = overrideStyles
+            }
         }
     }
 }

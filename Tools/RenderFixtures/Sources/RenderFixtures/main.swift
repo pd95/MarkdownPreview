@@ -12,7 +12,7 @@ try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDir
 
 let pipeline = MarkdownPipeline(
     defaultTheme: .auto,
-    plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid()]
+    plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid(), .customCSS()]
 )
 
 for path in arguments.dropFirst() {

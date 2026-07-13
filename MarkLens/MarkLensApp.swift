@@ -19,6 +19,10 @@ struct MarkLensApp: App {
     @FocusedValue(\.printAction) private var printAction
     @FocusedValue(\.pageSetupAction) private var pageSetupAction
 
+    init() {
+        AppearancePreferences.registerDefaults()
+    }
+
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(document: file.document, fileURL: file.fileURL)
@@ -56,7 +60,7 @@ struct MarkLensApp: App {
 #endif
 #if os(macOS)
         Settings {
-            FolderAccessSettingsView()
+            MarkLensSettingsView()
                 .environmentObject(localDocumentAccess)
         }
 #endif

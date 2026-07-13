@@ -1,6 +1,33 @@
 import Foundation
 import Markdown
 
+final class CustomCSSHTMLPlugin: HTMLRenderingPlugin {
+    let identifier = "custom-css"
+    private let css: String
+
+    init(css: String) {
+        self.css = css
+    }
+
+    func makeSession(context: PipelineContext) -> any HTMLRenderingPluginSession {
+        CustomCSSHTMLPluginSession(css: css)
+    }
+}
+
+private final class CustomCSSHTMLPluginSession: HTMLRenderingPluginSession {
+    private let css: String
+
+    init(css: String) {
+        self.css = css
+    }
+
+    func contribution() throws -> HTMLPluginContribution {
+        var contribution = HTMLPluginContribution()
+        contribution.overrideStyles = css
+        return contribution
+    }
+}
+
 final class WikiLinkHTMLPlugin: HTMLRenderingPlugin {
     let identifier = "wiki-links"
 

@@ -195,7 +195,7 @@ final class WikiNavigationModel: ObservableObject {
 
 enum WikiPageLoader {
     private static let pipeline = MarkdownPipeline(
-        plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid()]
+        plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid(), .customCSS()]
     )
 
     static func load(url: URL, wikiRoot: URL) -> WikiPageLoadResult {

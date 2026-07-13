@@ -20,7 +20,7 @@ final class MarkdownDocument: ReferenceFileDocument {
     let filename: String?
 
     private static let renderingPipeline = MarkdownPipeline(
-        plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid()]
+        plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid(), .customCSS()]
     )
 
     init(text: String = "") {

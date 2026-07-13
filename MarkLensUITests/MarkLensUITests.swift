@@ -78,6 +78,8 @@ private extension XCUIApplication {
         launchArguments = [
             "-ApplePersistenceIgnoreState",
             "YES",
+            "-CustomCSSOverrides",
+            "",
             fixtureURL.path
         ]
         launch()

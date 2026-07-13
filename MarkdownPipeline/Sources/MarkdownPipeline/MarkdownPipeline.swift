@@ -43,7 +43,8 @@ public struct MarkdownPipeline: Sendable {
             bodyHTML: renderedBody.html,
             title: mergedContext.title,
             additionalStyles: contribution.styles,
-            additionalScripts: contribution.scripts
+            additionalScripts: contribution.scripts,
+            overrideStyles: contribution.overrideStyles
         )
         return HTMLDocument(
             html: html,
@@ -74,6 +75,7 @@ public struct MarkdownPipeline: Sendable {
         var includesMath = false
         var highlightingSubset: [String]?
         var mermaidRendering: PipelineContext.MermaidRendering?
+        var customCSS: String?
 
         for feature in features {
             switch feature.configuration {
@@ -85,6 +87,8 @@ public struct MarkdownPipeline: Sendable {
                 includesMath = true
             case .mermaid(let rendering):
                 mermaidRendering = rendering
+            case .customCSS(let css):
+                customCSS = css
             }
         }
 
@@ -100,6 +104,9 @@ public struct MarkdownPipeline: Sendable {
         }
         if let highlightingSubset {
             plugins.append(SyntaxHighlightingHTMLPlugin(languageSubset: highlightingSubset))
+        }
+        if let customCSS {
+            plugins.append(CustomCSSHTMLPlugin(css: customCSS))
         }
         return plugins
     }

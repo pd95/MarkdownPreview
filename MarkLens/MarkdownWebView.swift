@@ -1,6 +1,7 @@
+import Foundation
+import MarkdownPipeline
 import SwiftUI
 import WebKit
-import MarkdownPipeline
 
 #if os(macOS)
 import AppKit
@@ -16,6 +17,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     var html: String
     var resources: [HTMLResource]
+    var customCSS: String
     var documentURL: URL?
     var openDocument: (URL) async throws -> Void
     var openWikiLink: (String) -> Void
@@ -36,6 +38,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
     init(
         html: String,
         resources: [HTMLResource] = [],
+        customCSS: String = "",
         documentURL: URL? = nil,
         openDocument: @escaping (URL) async throws -> Void = { _ in },
         openWikiLink: @escaping (String) -> Void = { _ in },
@@ -52,6 +55,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
     ) {
         self.html = html
         self.resources = resources
+        self.customCSS = customCSS
         self.documentURL = documentURL
         self.openDocument = openDocument
         self.openWikiLink = openWikiLink
@@ -185,6 +189,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         var latestFindTerm = ""
         var latestFindRequest = 0
         var latestFindAnchorRequest = 0
+        var latestCustomCSS: String?
         var isSearchInstalled = false
         var searchGeneration = 0
         var pendingPrintRequest = false
@@ -205,6 +210,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             let findTermChanged = parent.findTerm != latestFindTerm
             let findChanged = findTermChanged || parent.findRequest != latestFindRequest
             let findAnchorChanged = parent.findAnchorRequest != latestFindAnchorRequest
+            let customCSSChanged = parent.customCSS != latestCustomCSS
 
             if isPageReady && markdownChanged {
                 isPageReady = false
@@ -212,13 +218,18 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 searchGeneration += 1
                 webView?.loadHTMLString(parent.html, baseURL: parent.baseURL)
                 latestHash = newHash
-            } else if isPageReady && findAnchorChanged {
-                updateSearch(command: "anchor")
-                latestFindAnchorRequest = parent.findAnchorRequest
-            } else if isPageReady && findChanged {
-                updateSearch(command: findTermChanged ? "search" : searchCommand())
-                latestFindTerm = parent.findTerm
-                latestFindRequest = parent.findRequest
+            } else if isPageReady {
+                if customCSSChanged {
+                    applyCustomCSS()
+                }
+                if findAnchorChanged {
+                    updateSearch(command: "anchor")
+                    latestFindAnchorRequest = parent.findAnchorRequest
+                } else if findChanged {
+                    updateSearch(command: findTermChanged ? "search" : searchCommand())
+                    latestFindTerm = parent.findTerm
+                    latestFindRequest = parent.findRequest
+                }
             }
 
             handlePrintRequest()
@@ -291,6 +302,19 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 return number.intValue
             }
             return 0
+        }
+
+        private func applyCustomCSS(completion: (() -> Void)? = nil) {
+            latestCustomCSS = parent.customCSS
+            guard let webView else {
+                completion?()
+                return
+            }
+            webView.evaluateJavaScript(
+                MarkdownWebView.customCSSUpdateScript(for: parent.customCSS)
+            ) { _, _ in
+                completion?()
+            }
         }
 
         private static let searchScript: String = {
@@ -426,19 +450,40 @@ struct MarkdownWebView: PlatformViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isPageReady = true
             isSearchInstalled = false
-            updateSearch(command: "search")
-            latestFindTerm = parent.findTerm
-            latestFindRequest = parent.findRequest
+            let generation = searchGeneration
+            applyCustomCSS { [weak self] in
+                guard let self,
+                      self.isPageReady,
+                      generation == self.searchGeneration else { return }
+                self.updateSearch(command: "search")
+                self.latestFindTerm = self.parent.findTerm
+                self.latestFindRequest = self.parent.findRequest
 
-            if pendingPrintRequest || parent.printRequested {
-                pendingPrintRequest = false
-                printCurrentDocument()
+                if self.pendingPrintRequest || self.parent.printRequested {
+                    self.pendingPrintRequest = false
+                    self.printCurrentDocument()
+                }
             }
         }
     }
 
     private static let localImageScheme = "marklens-local-image"
     private static let resourceScheme = "marklens-resource"
+
+    static func customCSSUpdateScript(for css: String) -> String {
+        guard let identifierData = try? JSONEncoder().encode(HTMLFeature.customCSSStyleElementID),
+              let identifier = String(data: identifierData, encoding: .utf8),
+              let cssData = try? JSONEncoder().encode(css),
+              let encodedCSS = String(data: cssData, encoding: .utf8) else {
+            return ""
+        }
+        return """
+        (() => {
+            const style = document.getElementById(\(identifier));
+            if (style) style.textContent = \(encodedCSS);
+        })();
+        """
+    }
 
     private var localImageURLs: Set<URL> {
         guard let documentURL,

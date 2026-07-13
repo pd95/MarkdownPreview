@@ -60,6 +60,58 @@ struct MarkdownPipelineConvenienceAPITests {
         #expect(document.html.contains("$x$"))
     }
 
+    @Test func customCSSRendersAfterFeatureStyles() throws {
+        let css = "body { font-family: Custom; }"
+        let pipeline = MarkdownPipeline(plugins: [
+            .mermaid(rendering: .sourceWithAppHint),
+            .customCSS(css),
+        ])
+        let document = try pipeline.renderHTML(from: .string("""
+        ```mermaid
+        graph TD
+            A --> B
+        ```
+        """))
+
+        let featureStyle = try #require(document.html.range(of: ".mermaid-block {"))
+        let overrideStyle = try #require(document.html.range(
+            of: "<style id=\"\(HTMLFeature.customCSSStyleElementID)\">"
+        ))
+        #expect(featureStyle.lowerBound < overrideStyle.lowerBound)
+        #expect(document.html.contains(css))
+    }
+
+    @Test func emptyCustomCSSEmitsLiveUpdateSlot() throws {
+        let withOverrides = try MarkdownPipeline(plugins: [.customCSS()])
+            .renderHTML(from: .string("Text"))
+        let withoutOverrides = try MarkdownPipeline(plugins: [])
+            .renderHTML(from: .string("Text"))
+
+        #expect(withOverrides.html.contains("id=\"\(HTMLFeature.customCSSStyleElementID)\""))
+        #expect(withoutOverrides.html.contains(HTMLFeature.customCSSStyleElementID) == false)
+    }
+
+    @Test func latestCustomCSSConfigurationWins() throws {
+        let pipeline = MarkdownPipeline(plugins: [
+            .customCSS("body { color: red; }"),
+            .customCSS("body { color: blue; }"),
+        ])
+        let document = try pipeline.renderHTML(from: .string("Text"))
+
+        #expect(document.html.contains("body { color: blue; }"))
+        #expect(document.html.contains("body { color: red; }") == false)
+    }
+
+    @Test func customCSSCannotEscapeItsStyleElement() throws {
+        let malicious = "body {} </style><script>alert('x')</script>"
+        let pipeline = MarkdownPipeline(plugins: [.customCSS(malicious)])
+        let document = try pipeline.renderHTML(from: .string("Text"))
+
+        #expect(document.html.contains("<script>alert('x')</script>") == false)
+        #expect(document.html.contains("\\3C /style>\\3C script>"))
+        #expect(document.html.contains("\\3C /script>"))
+    }
+
     @Test func pluginOrderDoesNotChangeRenderingOrder() throws {
         let input = "See [[overview]] and $x$."
         let canonical = MarkdownPipeline(
