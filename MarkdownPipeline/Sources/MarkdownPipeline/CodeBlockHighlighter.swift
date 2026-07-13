@@ -25,13 +25,18 @@ struct CodeBlockHighlighter {
         }
 
         mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
-            let result = highlighter.highlight(
-                code: codeBlock.code,
-                language: codeBlock.language,
-                languageSubset: languageSubset
-            )
-            if let result {
-                highlights[index] = result
+            if codeBlock.language?
+                .split(whereSeparator: { $0.isWhitespace })
+                .first?
+                .lowercased() != "mermaid" {
+                let result = highlighter.highlight(
+                    code: codeBlock.code,
+                    language: codeBlock.language,
+                    languageSubset: languageSubset
+                )
+                if let result {
+                    highlights[index] = result
+                }
             }
             index += 1
             return ""

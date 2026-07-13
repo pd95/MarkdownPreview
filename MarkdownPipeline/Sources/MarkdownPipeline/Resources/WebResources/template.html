@@ -7,6 +7,9 @@
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('pre > code').forEach(code => {
+                    if (code.closest('[data-mermaid-diagram]')) {
+                        return;
+                    }
                     const pre = code.parentElement;
                     const wrapper = document.createElement('div');
                     wrapper.className = 'code-block';
@@ -55,5 +58,6 @@
       <div id="container">
       {{HTML}}
       </div>
+      {{SCRIPTS}}
     </body>
 </html>

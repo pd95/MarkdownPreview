@@ -19,6 +19,17 @@ let a = 1.0
 
 ```
 
+## Mermaid diagram rendering
+
+```mermaid
+flowchart LR
+    Markdown[Markdown source] --> Pipeline[MarkLens pipeline]
+    Pipeline --> Math[KaTeX formulas]
+    Pipeline --> Diagram[Mermaid diagrams]
+    Math --> Preview[Rendered preview]
+    Diagram --> Preview
+```
+
 ## Inline math
 
 Arrow: $\rightarrow$

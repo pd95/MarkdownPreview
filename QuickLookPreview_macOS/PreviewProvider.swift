@@ -37,7 +37,10 @@ class PreviewProvider: QLPreviewProvider, QLPreviewingController {
 
     private func renderHTML(for url: URL) throws -> HTMLDocument {
         let pipeline = MarkdownPipeline.defaultHTML()
-        let context = PipelineContext(title: url.lastPathComponent)
+        let context = PipelineContext(
+            title: url.lastPathComponent,
+            mermaidRendering: .sourceWithAppHint
+        )
         return try pipeline.renderHTML(from: .file(url), context: context)
     }
 }

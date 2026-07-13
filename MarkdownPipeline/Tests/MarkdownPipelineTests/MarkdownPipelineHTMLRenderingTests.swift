@@ -537,4 +537,81 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("<thead>"))
         #expect(document.html.contains("<tbody>"))
     }
+
+    @Test func preparesMermaidFencesForBrowserRendering() throws {
+        let input = """
+        ```Mermaid
+        flowchart LR
+            A[Start] --> B[End]
+        ```
+        """
+        let document = try MarkdownPipeline().render(
+            input: .string(input),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("data-mermaid-diagram"))
+        #expect(document.html.contains("class=\"language-mermaid\""))
+        #expect(document.html.contains("window.mermaid.initialize"))
+        #expect(document.resources.count == 1)
+        #expect(document.resources.first?.identifier == "mermaid/mermaid.min.js")
+        #expect(document.resources.first?.contentType == "application/javascript")
+    }
+
+    @Test func configuresMermaidForTheResolvedTheme() throws {
+        let document = try MarkdownPipeline().render(
+            input: .string("```mermaid\nflowchart LR\nA --> B\n```"),
+            context: PipelineContext(theme: .dark)
+        )
+
+        #expect(document.html.contains("const configuredTheme = 'dark'"))
+        #expect(document.html.contains("{{MERMAID_THEME}}") == false)
+    }
+
+    @Test func omitsMermaidAssetsFromDocumentsWithoutDiagrams() throws {
+        let document = try MarkdownPipeline().render(
+            input: .string("```swift\nlet value = 1\n```"),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("window.mermaid.initialize") == false)
+        #expect(document.resources.contains { $0.identifier.contains("mermaid") } == false)
+    }
+
+    @Test func rendersMermaidSourceHintWhenRequested() throws {
+        let document = try MarkdownPipeline().render(
+            input: .string("```mermaid\nsequenceDiagram\nA->>B: Hello\n```"),
+            context: PipelineContext(mermaidRendering: .sourceWithAppHint)
+        )
+
+        #expect(document.html.contains("Quick Look source"))
+        #expect(document.html.contains("open in MarkLens to render this Mermaid diagram"))
+        #expect(document.html.contains("sequenceDiagram"))
+        #expect(document.html.contains("<div class=\"mermaid-block\" data-mermaid-diagram>") == false)
+        #expect(document.html.contains("class=\"language-mermaid\"") == false)
+        #expect(document.html.contains("class=\"lang-plaintext\""))
+        #expect(document.resources.isEmpty)
+    }
+
+    @Test func escapesMermaidSourceAndIncludesErrorFallbackMarkup() throws {
+        let document = try MarkdownPipeline().render(
+            input: .string("```mermaid\nflowchart LR\nA[</code><script>alert(1)</script>]\n```"),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("A[&lt;/code&gt;&lt;script&gt;alert(1)&lt;/script&gt;]"))
+        #expect(document.html.contains("<script>alert(1)</script>") == false)
+        #expect(document.html.contains("Could not render Mermaid diagram. Showing source."))
+    }
+
+    @Test func leavesSimilarlyNamedCodeLanguagesUnchanged() throws {
+        let document = try MarkdownPipeline().render(
+            input: .string("```mermaid-js\nflowchart LR\n```"),
+            context: PipelineContext(enableCodeHighlighting: false)
+        )
+
+        #expect(document.html.contains("<div class=\"mermaid-block\" data-mermaid-diagram>") == false)
+        #expect(document.html.contains("lang-mermaid-js"))
+        #expect(document.resources.isEmpty)
+    }
 }

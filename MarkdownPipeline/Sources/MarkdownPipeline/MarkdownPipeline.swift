@@ -43,7 +43,8 @@ public struct MarkdownPipeline {
             codeBlockHighlights: highlights,
             escapedWikiLinkPlaceholder: protectedMarkdown.placeholder,
             mathExpressions: protectedMath.expressions,
-            mathRenderer: mathRenderer
+            mathRenderer: mathRenderer,
+            mermaidRendering: mergedContext.mermaidRendering
         )
         let katexAssets: KaTeXAssets?
         if renderedBody.containsRenderedMath {
@@ -51,18 +52,25 @@ public struct MarkdownPipeline {
         } else {
             katexAssets = nil
         }
+        let mermaidAssets: MermaidAssets?
+        if renderedBody.containsMermaidDiagrams {
+            mermaidAssets = try MermaidAssets.load(theme: mergedContext.theme)
+        } else {
+            mermaidAssets = nil
+        }
         let html = try HTMLEmitter().render(
             bodyHTML: renderedBody.html,
             title: mergedContext.title,
             theme: mergedContext.theme,
-            additionalStyles: katexAssets?.stylesheet ?? ""
+            additionalStyles: katexAssets?.stylesheet ?? "",
+            additionalScripts: mermaidAssets?.scripts ?? ""
         )
         return HTMLDocument(
             html: html,
             title: mergedContext.title,
             baseURL: mergedContext.baseURL,
             containsWikiLinks: renderedBody.containsWikiLinks,
-            resources: katexAssets?.resources ?? []
+            resources: (katexAssets?.resources ?? []) + (mermaidAssets?.resources ?? [])
         )
     }
 

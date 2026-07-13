@@ -24,6 +24,7 @@ struct HTMLVisitor: MarkupVisitor {
         let html: String
         let containsWikiLinks: Bool
         let containsRenderedMath: Bool
+        let containsMermaidDiagrams: Bool
     }
 
     var softBreak: String
@@ -37,6 +38,8 @@ struct HTMLVisitor: MarkupVisitor {
     var escapedWikiLinkPlaceholder: String?
     var linkDepth = 0
     var containsRenderedMath = false
+    var containsMermaidDiagrams = false
+    let mermaidRendering: PipelineContext.MermaidRendering
     let mathExpressions: [String: ProtectedMath.Expression]
     let mathRenderer: KaTeXRenderer
 
@@ -57,13 +60,15 @@ struct HTMLVisitor: MarkupVisitor {
         codeBlockHighlights: [Int: CodeHighlightResult] = [:],
         escapedWikiLinkPlaceholder: String? = nil,
         mathExpressions: [String: ProtectedMath.Expression] = [:],
-        mathRenderer: KaTeXRenderer = KaTeXRenderer()
+        mathRenderer: KaTeXRenderer = KaTeXRenderer(),
+        mermaidRendering: PipelineContext.MermaidRendering = .rendered
     ) {
         softBreak = keepLineBreaks ? "<br>" : "\n"
         self.codeBlockHighlights = codeBlockHighlights
         self.escapedWikiLinkPlaceholder = escapedWikiLinkPlaceholder
         self.mathExpressions = mathExpressions
         self.mathRenderer = mathRenderer
+        self.mermaidRendering = mermaidRendering
     }
 
     static func render(
@@ -72,20 +77,23 @@ struct HTMLVisitor: MarkupVisitor {
         codeBlockHighlights: [Int: CodeHighlightResult] = [:],
         escapedWikiLinkPlaceholder: String? = nil,
         mathExpressions: [String: ProtectedMath.Expression] = [:],
-        mathRenderer: KaTeXRenderer = KaTeXRenderer()
+        mathRenderer: KaTeXRenderer = KaTeXRenderer(),
+        mermaidRendering: PipelineContext.MermaidRendering = .rendered
     ) -> RenderResult {
         var visitor = HTMLVisitor(
             keepLineBreaks: keepLineBreaks,
             codeBlockHighlights: codeBlockHighlights,
             escapedWikiLinkPlaceholder: escapedWikiLinkPlaceholder,
             mathExpressions: mathExpressions,
-            mathRenderer: mathRenderer
+            mathRenderer: mathRenderer,
+            mermaidRendering: mermaidRendering
         )
         let html = visitor.visit(document)
         return RenderResult(
             html: html,
             containsWikiLinks: visitor.containsWikiLinks,
-            containsRenderedMath: visitor.containsRenderedMath
+            containsRenderedMath: visitor.containsRenderedMath,
+            containsMermaidDiagrams: visitor.containsMermaidDiagrams
         )
     }
 
@@ -236,6 +244,9 @@ struct HTMLVisitor: MarkupVisitor {
     mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
         let highlight = codeBlockHighlights[codeBlockIndex]
         codeBlockIndex += 1
+        if isMermaidLanguage(codeBlock.language) {
+            return renderMermaidBlock(codeBlock.code)
+        }
         if let highlight {
             let languageClass = highlight.language.map { " language-\($0)" } ?? ""
             let literalHTML = WikiLinkEscapes.restoreText(
@@ -257,6 +268,36 @@ struct HTMLVisitor: MarkupVisitor {
             .encodedHTMLEntities()
         result += "\n</code></pre>\n"
         return result
+    }
+
+    private mutating func renderMermaidBlock(_ source: String) -> String {
+        let escapedSource = restoreMathSource(in: source)
+            .trimmingCharacters(in: .newlines)
+            .encodedHTMLEntities()
+        switch mermaidRendering {
+        case .rendered:
+            containsMermaidDiagrams = true
+            return """
+            <div class="mermaid-block" data-mermaid-diagram>
+            <pre class="mermaid-source"><code class="language-mermaid">\(escapedSource)\n</code></pre>
+            <p class="mermaid-error" role="status" hidden>Could not render Mermaid diagram. Showing source.</p>
+            </div>
+            """ + "\n"
+        case .sourceWithAppHint:
+            return """
+            <div class="mermaid-block mermaid-source-fallback">
+            <p class="mermaid-hint"><strong>Quick Look source</strong> — open in MarkLens to render this Mermaid diagram</p>
+            <pre class="mermaid-source"><code class="lang-plaintext">\(escapedSource)\n</code></pre>
+            </div>
+            """ + "\n"
+        }
+    }
+
+    private func isMermaidLanguage(_ language: String?) -> Bool {
+        language?
+            .split(whereSeparator: { $0.isWhitespace })
+            .first?
+            .lowercased() == "mermaid"
     }
 
     private mutating func renderTextAndMath(_ text: String, renderWikiLinks: Bool) -> String {
