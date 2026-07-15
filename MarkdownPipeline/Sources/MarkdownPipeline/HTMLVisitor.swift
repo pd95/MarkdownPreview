@@ -30,6 +30,7 @@ struct HTMLVisitor: MarkupVisitor {
     var currentColumnIndex = 0
     var headingIDCounts: [String: Int] = [:]
     var linkDepth = 0
+    let sourceLineOffset: Int
     let plugins: HTMLPluginCoordinator
 
     static let disallowedRawHTMLTags = [
@@ -46,19 +47,23 @@ struct HTMLVisitor: MarkupVisitor {
 
     init(
         keepLineBreaks: Bool = false,
+        sourceLineOffset: Int = 0,
         plugins: HTMLPluginCoordinator
     ) {
         softBreak = keepLineBreaks ? "<br>" : "\n"
+        self.sourceLineOffset = sourceLineOffset
         self.plugins = plugins
     }
 
     static func render(
         document: Document,
         keepLineBreaks: Bool = false,
+        sourceLineOffset: Int = 0,
         plugins: HTMLPluginCoordinator
     ) -> RenderResult {
         var visitor = HTMLVisitor(
             keepLineBreaks: keepLineBreaks,
+            sourceLineOffset: sourceLineOffset,
             plugins: plugins
         )
         let html = visitor.visit(document)
@@ -81,7 +86,7 @@ struct HTMLVisitor: MarkupVisitor {
         if paragraph.childCount == 1,
            let text = paragraph.child(at: 0) as? Text,
            let rendered = plugins.renderStandaloneParagraph(text.plainText) {
-            return rendered
+            return addingSourceLine(to: rendered, for: paragraph)
         }
         var result: String
         let shouldSkipParagraph = skipParagraphTags
@@ -89,7 +94,7 @@ struct HTMLVisitor: MarkupVisitor {
             skipParagraphTags = false
             result = ""
         } else {
-            result = "<p>"
+            result = "<p\(sourceLineAttribute(for: paragraph))>"
         }
 
         for child in paragraph.children {
@@ -196,7 +201,7 @@ struct HTMLVisitor: MarkupVisitor {
 
     mutating func visitHeading(_ heading: Heading) -> String {
         let identifier = uniqueHeadingID(for: heading)
-        var result = "<h\(heading.level) id=\"\(identifier.encodedHTMLAttribute())\">"
+        var result = "<h\(heading.level) id=\"\(identifier.encodedHTMLAttribute())\"\(sourceLineAttribute(for: heading))>"
         for child in heading.children {
             result += visit(child)
         }
@@ -206,10 +211,10 @@ struct HTMLVisitor: MarkupVisitor {
 
     mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> String {
         if let rendered = plugins.renderCodeBlock(codeBlock) {
-            return rendered
+            return addingSourceLine(to: rendered, for: codeBlock)
         }
 
-        var result = "<pre><code class=\"lang-\(codeBlock.language ?? "plaintext")\">"
+        var result = "<pre\(sourceLineAttribute(for: codeBlock))><code class=\"lang-\(codeBlock.language ?? "plaintext")\">"
         result += plugins.restoreLiteral(codeBlock.code)
             .trimmingCharacters(in: .newlines)
             .encodedHTMLEntities()
@@ -218,11 +223,11 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     func visitThematicBreak(_ thematicBreak: ThematicBreak) -> String {
-        "<hr>"
+        "<hr\(sourceLineAttribute(for: thematicBreak))>"
     }
 
     mutating func visitBlockQuote(_ blockQuote: BlockQuote) -> String {
-        var result = "<blockquote>\n"
+        var result = "<blockquote\(sourceLineAttribute(for: blockQuote))>\n"
         for child in blockQuote.children {
             result += visit(child)
         }
@@ -231,7 +236,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitOrderedList(_ orderedList: OrderedList) -> String {
-        var result = "<ol>\n"
+        var result = "<ol\(sourceLineAttribute(for: orderedList))>\n"
         for child in orderedList.listItems {
             result += visit(child)
         }
@@ -240,7 +245,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitUnorderedList(_ orderedList: UnorderedList) -> String {
-        var result = "<ul>\n"
+        var result = "<ul\(sourceLineAttribute(for: orderedList))>\n"
         for child in orderedList.listItems {
             result += visit(child)
         }
@@ -249,7 +254,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitListItem(_ listItem: ListItem) -> String {
-        var result = "<li>"
+        var result = "<li\(sourceLineAttribute(for: listItem))>"
 
         if let checkbox = listItem.checkbox {
             result += "<input type=\"checkbox\" disabled\(checkbox == .checked ? " checked" : "")>"
@@ -282,6 +287,9 @@ struct HTMLVisitor: MarkupVisitor {
         if let markerRegex = try? Regex("(?i)\\s+data-marklens-local-image(?:\\s*=\\s*(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s>]+))?") {
             result = result.replacing(markerRegex, with: "")
         }
+        if let sourceLineRegex = try? Regex("(?i)\\s+data-marklens-source-line(?:\\s*=\\s*(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s>]+))?") {
+            result = result.replacing(sourceLineRegex, with: "")
+        }
 
         guard let regex = try? Regex(pattern) else {
             return result
@@ -305,7 +313,7 @@ struct HTMLVisitor: MarkupVisitor {
         let previousState = (table: currentTable, index: currentColumnIndex)
         currentTable = table
 
-        var result = "<table>"
+        var result = "<table\(sourceLineAttribute(for: table))>"
         for child in table.children {
             result += visit(child)
         }
@@ -338,7 +346,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitTableRow(_ row: Table.Row) -> String {
-        var result = "<tr>"
+        var result = "<tr\(sourceLineAttribute(for: row))>"
 
         currentColumnIndex = 0
         for child in row.children {
@@ -361,7 +369,7 @@ struct HTMLVisitor: MarkupVisitor {
             attributes += "  style=\"text-align:\(String(describing: alignment))\""
         }
 
-        var result = "<td\(attributes)>"
+        var result = "<td\(attributes)\(sourceLineAttribute(for: cell))>"
         for child in cell.children {
             result += visit(child)
         }
@@ -369,6 +377,23 @@ struct HTMLVisitor: MarkupVisitor {
         currentColumnIndex += Int(cell.colspan)
 
         result += "</td>\n"
+        return result
+    }
+
+    private func sourceLineAttribute(for markup: any Markup) -> String {
+        guard let line = markup.range?.lowerBound.line else { return "" }
+        return " data-marklens-source-line=\"\(line + sourceLineOffset)\""
+    }
+
+    private func addingSourceLine(to html: String, for markup: any Markup) -> String {
+        let attribute = sourceLineAttribute(for: markup)
+        guard attribute.isEmpty == false,
+              let tagEnd = html.firstIndex(of: ">") else {
+            return html
+        }
+
+        var result = html
+        result.insert(contentsOf: attribute, at: tagEnd)
         return result
     }
 

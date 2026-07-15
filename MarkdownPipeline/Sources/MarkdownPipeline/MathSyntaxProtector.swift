@@ -50,6 +50,7 @@ struct MathSyntaxProtector {
                     let body = lines[(index + 1)..<closingIndex].joined(separator: "\n")
                     let original = lines[index...closingIndex].joined(separator: "\n")
                     output.append(token(source: body, original: original, displayMode: true))
+                    output.append(contentsOf: repeatElement("", count: closingIndex - index))
                     index = closingIndex + 1
                     continue
                 }
@@ -112,6 +113,7 @@ struct MathSyntaxProtector {
                         original: original,
                         displayMode: true
                     ))
+                    output.append(contentsOf: repeatElement("", count: closingIndex - index))
                     index = closingIndex + 1
                     continue
                 }

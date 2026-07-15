@@ -143,7 +143,7 @@ struct MarkdownPipelineHTMLRenderingTests {
             context: PipelineContext(enableCodeHighlighting: false)
         )
 
-        #expect(document.html.contains("<pre><code class=\"lang-math\">"))
+        #expect(document.html.contains("<code class=\"lang-math\">"))
         #expect(document.html.contains("$x$"))
         #expect(document.html.contains("class=\"math math-display\"") == false)
     }
@@ -365,8 +365,8 @@ struct MarkdownPipelineHTMLRenderingTests {
         """
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
-        #expect(document.html.contains("<ul>"))
-        #expect(document.html.contains("<li>First"))
+        #expect(document.html.contains("<ul data-marklens-source-line=\"1\">"))
+        #expect(document.html.contains("data-marklens-source-line=\"1\">First"))
         #expect(document.html.contains("<input type=\"checkbox\" disabled checked>"))
         #expect(document.html.contains("<input type=\"checkbox\" disabled>"))
     }
@@ -379,7 +379,7 @@ struct MarkdownPipelineHTMLRenderingTests {
         """
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
-        #expect(document.html.contains("<h1 id=\"title\">Title</h1>"))
+        #expect(document.html.contains("<h1 id=\"title\" data-marklens-source-line=\"1\">Title</h1>"))
         #expect(document.html.contains("<strong>bold</strong>"))
     }
 
@@ -391,9 +391,40 @@ struct MarkdownPipelineHTMLRenderingTests {
         """
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
-        #expect(document.html.contains("<h1 id=\"hello-world\">Hello World</h1>"))
-        #expect(document.html.contains("<h2 id=\"hello-world-1\">Hello World</h2>"))
-        #expect(document.html.contains("<h1 id=\"hello-world-2\">Hello, World!</h1>"))
+        #expect(document.html.contains("id=\"hello-world\" data-marklens-source-line=\"1\">Hello World</h1>"))
+        #expect(document.html.contains("id=\"hello-world-1\" data-marklens-source-line=\"2\">Hello World</h2>"))
+        #expect(document.html.contains("id=\"hello-world-2\" data-marklens-source-line=\"3\">Hello, World!</h1>"))
+    }
+
+    @Test func sourceLineAnchorsAccountForFrontMatterAndMultilineMath() throws {
+        let input = """
+        ---
+        title: Anchors
+        ---
+
+        # Heading
+
+        $$
+        x + y
+        $$
+
+        After math.
+        """
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(input: .string(input), context: PipelineContext())
+
+        #expect(document.html.contains("id=\"heading\" data-marklens-source-line=\"5\">Heading</h1>"))
+        #expect(document.html.contains("<p data-marklens-source-line=\"11\">After math.</p>"))
+    }
+
+    @Test func sourceLineAnchorsUseLogicalLinesForCRLFInput() throws {
+        let input = "---\r\ntitle: Windows\r\n---\r\n# Heading"
+        let document = try MarkdownPipeline().render(
+            input: .string(input),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("id=\"heading\" data-marklens-source-line=\"4\">Heading</h1>"))
     }
 
     @Test func rendersBlockQuoteAndRule() throws {
@@ -404,8 +435,8 @@ struct MarkdownPipelineHTMLRenderingTests {
         """
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
-        #expect(document.html.contains("<blockquote>"))
-        #expect(document.html.contains("<hr>"))
+        #expect(document.html.contains("<blockquote data-marklens-source-line=\"1\">"))
+        #expect(document.html.contains("<hr data-marklens-source-line=\"3\">"))
     }
 
     @Test func rendersCodeBlockWithoutHighlighting() throws {
@@ -417,7 +448,7 @@ struct MarkdownPipelineHTMLRenderingTests {
         let pipeline = MarkdownPipeline()
         let context = PipelineContext(enableCodeHighlighting: false)
         let document = try pipeline.render(input: .string(input), context: context)
-        #expect(document.html.contains("<pre><code class=\"lang-swift\">"))
+        #expect(document.html.contains("<code class=\"lang-swift\">"))
         #expect(document.html.contains("class=\"hljs") == false)
     }
 
@@ -432,10 +463,10 @@ struct MarkdownPipelineHTMLRenderingTests {
         let pipeline = MarkdownPipeline()
         let context = PipelineContext(enableCodeHighlighting: false)
         let document = try pipeline.render(input: .string(input), context: context)
-        let preCount = document.html.components(separatedBy: "<pre>").count - 1
+        let preCount = document.html.components(separatedBy: "<pre data-marklens-source-line=").count - 1
 
         #expect(preCount == 1)
-        #expect(document.html.contains("<pre><code class=\"lang-markdown\">"))
+        #expect(document.html.contains("<code class=\"lang-markdown\">"))
         #expect(document.html.contains("```swift"))
         #expect(document.html.contains("let value = 1"))
         #expect(document.html.contains("</code></pre>"))
@@ -457,7 +488,7 @@ struct MarkdownPipelineHTMLRenderingTests {
         let pipeline = MarkdownPipeline()
         let context = PipelineContext(enableCodeHighlighting: false)
         let document = try pipeline.render(input: .string(input), context: context)
-        let preCount = document.html.components(separatedBy: "<pre>").count - 1
+        let preCount = document.html.components(separatedBy: "<pre data-marklens-source-line=").count - 1
 
         #expect(preCount == 1)
         #expect(document.html.contains("```bash"))
@@ -506,6 +537,16 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("data-marklens-local-image") == false)
     }
 
+    @Test func stripsReservedSourceLineAnchorsFromRawHTML() throws {
+        let document = try MarkdownPipeline().render(
+            input: .string("<p data-marklens-source-line=\"9000\">Raw</p>"),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("data-marklens-source-line=\"9000\"") == false)
+        #expect(document.html.contains("<p>Raw</p>"))
+    }
+
     @Test func rendersEmbeddedBase64Images() throws {
         let input = "![Alt](data:image/png;base64,aGVsbG8=)"
         let pipeline = MarkdownPipeline()
@@ -533,7 +574,7 @@ struct MarkdownPipelineHTMLRenderingTests {
         """
         let pipeline = MarkdownPipeline()
         let document = try pipeline.render(input: .string(input), context: PipelineContext())
-        #expect(document.html.contains("<table>"))
+        #expect(document.html.contains("<table data-marklens-source-line="))
         #expect(document.html.contains("<thead>"))
         #expect(document.html.contains("<tbody>"))
     }

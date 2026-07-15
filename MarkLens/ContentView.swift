@@ -12,6 +12,13 @@ import MarkdownPipeline
 import AppKit
 #endif
 
+struct DocumentScrollPosition: Equatable {
+    var sourceLine: Int?
+    var progress: Double
+
+    static let top = DocumentScrollPosition(sourceLine: 1, progress: 0)
+}
+
 struct ContentView: View {
 #if os(macOS)
     @Environment(\.openDocument) private var openDocument
@@ -43,6 +50,12 @@ struct ContentView: View {
     @State private var previewFindAnchorRequest = 0
     @State private var previewFindMatchCount = 0
     @State private var previewFindCurrentIndex = 0
+    @State private var previewScrollPosition = DocumentScrollPosition.top
+    @State private var sourceScrollPosition = DocumentScrollPosition.top
+    @State private var previewScrollTarget = DocumentScrollPosition.top
+    @State private var sourceScrollTarget = DocumentScrollPosition.top
+    @State private var previewScrollRequest = 0
+    @State private var sourceScrollRequest = 0
 
     init(document: MarkdownDocument, fileURL: URL? = nil) {
         self.document = document
@@ -78,13 +91,22 @@ struct ContentView: View {
                 findTerm: isRawEditing ? "" : previewFindText,
                 findRequest: previewFindRequest,
                 findBackwards: previewFindBackwards,
-                findAnchorRequest: previewFindAnchorRequest
+                findAnchorRequest: previewFindAnchorRequest,
+                scrollPosition: $previewScrollPosition,
+                scrollTarget: previewScrollTarget,
+                scrollRequest: previewScrollRequest
             )
             .allowsHitTesting(!isRawEditing && !isWikiNavigationLoading)
             .zIndex(0)
 
             if isRawEditing {
-                RawEditorView(text: $rawDraft, showFind: $showFind)
+                RawEditorView(
+                    text: $rawDraft,
+                    showFind: $showFind,
+                    scrollPosition: $sourceScrollPosition,
+                    scrollTarget: sourceScrollTarget,
+                    scrollRequest: sourceScrollRequest
+                )
                     .transition(.move(edge: .trailing))
                     .zIndex(1)
             }
@@ -118,7 +140,7 @@ struct ContentView: View {
             if isRawEditing {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", systemImage: "xmark", role: .cancel) {
-                        isRawEditing = false
+                        finishRawEditing(commitChanges: false)
                     }
                     .keyboardShortcut(.cancelAction)
                 }
@@ -143,8 +165,7 @@ struct ContentView: View {
 #endif
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Update", systemImage: "checkmark") {
-                        document.updateText(rawDraft)
-                        isRawEditing = false
+                        finishRawEditing(commitChanges: true)
                     }
                     .keyboardShortcut("s")
                 }
@@ -265,8 +286,7 @@ struct ContentView: View {
 
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
-                        rawDraft = rawString()
-                        isRawEditing = true
+                        beginRawEditing()
                     } label: {
                         Label("Raw", systemImage: "square.and.pencil")
                     }
@@ -361,6 +381,22 @@ struct ContentView: View {
 
     private func rawString() -> String {
         document.text
+    }
+
+    private func beginRawEditing() {
+        rawDraft = rawString()
+        sourceScrollTarget = previewScrollPosition
+        sourceScrollRequest += 1
+        isRawEditing = true
+    }
+
+    private func finishRawEditing(commitChanges: Bool) {
+        previewScrollTarget = sourceScrollPosition
+        previewScrollRequest += 1
+        if commitChanges {
+            document.updateText(rawDraft)
+        }
+        isRawEditing = false
     }
 
     private var displayedHTML: String {

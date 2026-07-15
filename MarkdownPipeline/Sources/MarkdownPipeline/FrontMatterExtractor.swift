@@ -14,14 +14,21 @@ struct FrontMatter {
 }
 
 struct FrontMatterExtractor {
-    func extract(from markdown: String) -> (frontMatter: FrontMatter?, bodyMarkdown: String) {
-        let lines = markdown.components(separatedBy: .newlines)
+    func extract(from markdown: String) -> (
+        frontMatter: FrontMatter?,
+        bodyMarkdown: String,
+        bodyLineOffset: Int
+    ) {
+        let normalizedMarkdown = markdown
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let lines = normalizedMarkdown.components(separatedBy: "\n")
         guard lines.first == "---" else {
-            return (nil, markdown)
+            return (nil, markdown, 0)
         }
 
         guard let closingIndex = lines.dropFirst().firstIndex(of: "---") else {
-            return (nil, markdown)
+            return (nil, markdown, 0)
         }
 
         let frontMatterLines = Array(lines[1..<closingIndex])
@@ -30,7 +37,7 @@ struct FrontMatterExtractor {
         let values = Self.parseFlatYAML(lines: frontMatterLines)
         let frontMatter = FrontMatter(raw: frontMatterRaw, values: values)
         let bodyMarkdown = bodyLines.joined(separator: "\n")
-        return (frontMatter, bodyMarkdown)
+        return (frontMatter, bodyMarkdown, closingIndex + 1)
     }
 
     private static func parseFlatYAML(lines: [String]) -> [String: String] {

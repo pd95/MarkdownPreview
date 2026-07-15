@@ -36,6 +36,7 @@ public struct MarkdownPipeline: Sendable {
         let renderedBody = HTMLVisitor.render(
             document: document,
             keepLineBreaks: true,
+            sourceLineOffset: extraction.bodyLineOffset,
             plugins: coordinator
         )
         let contribution = try coordinator.contribution()

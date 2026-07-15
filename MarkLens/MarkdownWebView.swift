@@ -31,6 +31,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var findRequest: Int
     var findBackwards: Bool
     var findAnchorRequest: Int
+    @Binding var scrollPosition: DocumentScrollPosition
+    var scrollTarget: DocumentScrollPosition
+    var scrollRequest: Int
     private var baseURL: URL? {
         documentURL
     }
@@ -51,7 +54,10 @@ struct MarkdownWebView: PlatformViewRepresentable {
         findTerm: String = "",
         findRequest: Int = 0,
         findBackwards: Bool = false,
-        findAnchorRequest: Int = 0
+        findAnchorRequest: Int = 0,
+        scrollPosition: Binding<DocumentScrollPosition> = .constant(.top),
+        scrollTarget: DocumentScrollPosition = .top,
+        scrollRequest: Int = 0
     ) {
         self.html = html
         self.resources = resources
@@ -69,6 +75,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
         self.findRequest = findRequest
         self.findBackwards = findBackwards
         self.findAnchorRequest = findAnchorRequest
+        self._scrollPosition = scrollPosition
+        self.scrollTarget = scrollTarget
+        self.scrollRequest = scrollRequest
     }
 
     func makeCoordinator() -> Coordinator {
@@ -80,6 +89,12 @@ struct MarkdownWebView: PlatformViewRepresentable {
         let resourceHandler = HTMLResourceSchemeHandler()
         resourceHandler.update(resources: resources)
         config.setURLSchemeHandler(resourceHandler, forURLScheme: Self.resourceScheme)
+        config.userContentController.add(context.coordinator, name: Self.scrollMessageHandler)
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.scrollPositionScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        ))
         context.coordinator.resourceHandler = resourceHandler
 #if os(macOS)
         let localImageHandler = LocalImageSchemeHandler()
@@ -131,6 +146,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
 #endif
         view.navigationDelegate = nil
         view.uiDelegate = nil
+        view.configuration.userContentController.removeScriptMessageHandler(forName: Self.scrollMessageHandler)
         coordinator.searchGeneration += 1
         coordinator.webView = nil
     }
@@ -176,7 +192,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         return hasher.finalize()
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: MarkdownWebView
         weak var webView: WKWebView?
         var resourceHandler: HTMLResourceSchemeHandler?
@@ -193,6 +209,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         var isSearchInstalled = false
         var searchGeneration = 0
         var pendingPrintRequest = false
+        var latestScrollRequest = 0
 
         init(parent: MarkdownWebView) {
             self.parent = parent
@@ -211,6 +228,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             let findChanged = findTermChanged || parent.findRequest != latestFindRequest
             let findAnchorChanged = parent.findAnchorRequest != latestFindAnchorRequest
             let customCSSChanged = parent.customCSS != latestCustomCSS
+            let scrollChanged = parent.scrollRequest != latestScrollRequest
 
             if isPageReady && markdownChanged {
                 isPageReady = false
@@ -230,9 +248,42 @@ struct MarkdownWebView: PlatformViewRepresentable {
                     latestFindTerm = parent.findTerm
                     latestFindRequest = parent.findRequest
                 }
+                if scrollChanged {
+                    restoreScrollPosition()
+                }
             }
 
             handlePrintRequest()
+        }
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == MarkdownWebView.scrollMessageHandler,
+                  let value = message.body as? [String: Any] else { return }
+
+            let line = Self.optionalIntValue(value["line"])
+            let progress = (value["progress"] as? NSNumber)?.doubleValue ?? 0
+            let position = DocumentScrollPosition(
+                sourceLine: line,
+                progress: min(max(progress, 0), 1)
+            )
+            Task { @MainActor in
+                self.parent.scrollPosition = position
+            }
+        }
+
+        private func restoreScrollPosition() {
+            guard let webView else { return }
+            latestScrollRequest = parent.scrollRequest
+            let arguments: [String: Any] = [
+                "line": parent.scrollTarget.sourceLine.map { $0 as Any } ?? NSNull(),
+                "progress": parent.scrollTarget.progress
+            ]
+            guard let data = try? JSONSerialization.data(withJSONObject: arguments),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            webView.evaluateJavaScript("window.MarkLensScroll.restore(\(json));")
         }
 
         func localImagePermissionDenied(_ url: URL) {
@@ -302,6 +353,11 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 return number.intValue
             }
             return 0
+        }
+
+        private static func optionalIntValue(_ value: Any?) -> Int? {
+            guard let number = value as? NSNumber else { return nil }
+            return number.intValue
         }
 
         private func applyCustomCSS(completion: (() -> Void)? = nil) {
@@ -455,6 +511,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 guard let self,
                       self.isPageReady,
                       generation == self.searchGeneration else { return }
+                if self.parent.scrollRequest != self.latestScrollRequest {
+                    self.restoreScrollPosition()
+                }
                 self.updateSearch(command: "search")
                 self.latestFindTerm = self.parent.findTerm
                 self.latestFindRequest = self.parent.findRequest
@@ -469,6 +528,128 @@ struct MarkdownWebView: PlatformViewRepresentable {
 
     private static let localImageScheme = "marklens-local-image"
     private static let resourceScheme = "marklens-resource"
+    private static let scrollMessageHandler = "marklensScrollPosition"
+
+    private static let scrollPositionScript = """
+        (() => {
+            const anchors = Array.from(
+                document.querySelectorAll('[data-marklens-source-line]')
+            );
+            const sourceAnchors = anchors
+                .map(element => ({
+                    element,
+                    line: Number(element.dataset.marklensSourceLine)
+                }))
+                .filter(anchor => Number.isFinite(anchor.line))
+                .sort((left, right) => left.line - right.line);
+            const visibleAnchors = new Set();
+            const progress = () => {
+                const maximum = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+                return maximum === 0 ? 0 : scrollY / maximum;
+            };
+            const report = () => {
+                let line = null;
+                let closestDistance = Infinity;
+                visibleAnchors.forEach(element => {
+                    const rect = element.getBoundingClientRect();
+                    if (rect.bottom < 0 || rect.top > innerHeight) return;
+                    const distance = Math.abs(rect.top);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        line = Number(element.dataset.marklensSourceLine);
+                    }
+                });
+                window.webkit.messageHandlers.marklensScrollPosition.postMessage({
+                    line: Number.isFinite(line) ? line : null,
+                    progress: progress()
+                });
+            };
+            let scheduled = false;
+            const scheduleReport = () => {
+                if (scheduled) return;
+                scheduled = true;
+                requestAnimationFrame(() => {
+                    scheduled = false;
+                    report();
+                });
+            };
+            const visibilityObserver = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        visibleAnchors.add(entry.target);
+                    } else {
+                        visibleAnchors.delete(entry.target);
+                    }
+                });
+                scheduleReport();
+            });
+            anchors.forEach(anchor => visibilityObserver.observe(anchor));
+            addEventListener('scroll', scheduleReport, { passive: true });
+
+            const targetForLine = requestedLine => {
+                let lower = 0;
+                let upper = sourceAnchors.length;
+                while (lower < upper) {
+                    const middle = Math.floor((lower + upper) / 2);
+                    if (sourceAnchors[middle].line <= requestedLine) {
+                        lower = middle + 1;
+                    } else {
+                        upper = middle;
+                    }
+                }
+                return sourceAnchors[Math.max(0, lower - 1)]?.element || null;
+            };
+            let activeRestoration = null;
+            let restorationTimeout = null;
+            const cancelRestoration = () => {
+                activeRestoration = null;
+                clearTimeout(restorationTimeout);
+                restorationTimeout = null;
+            };
+            const applyRestoration = () => {
+                if (!activeRestoration) return;
+                const requestedLine = activeRestoration.line === null
+                    ? NaN
+                    : Number(activeRestoration.line);
+                const target = Number.isFinite(requestedLine)
+                    ? targetForLine(requestedLine)
+                    : null;
+                if (target) {
+                    const top = scrollY + target.getBoundingClientRect().top;
+                    scrollTo(0, top);
+                } else {
+                    const maximum = Math.max(
+                        0,
+                        document.documentElement.scrollHeight - innerHeight
+                    );
+                    const requestedProgress = Math.min(
+                        Math.max(Number(activeRestoration.progress) || 0, 0),
+                        1
+                    );
+                    scrollTo(0, maximum * requestedProgress);
+                }
+                scheduleReport();
+            };
+            const layoutObserver = new ResizeObserver(() => {
+                if (activeRestoration) requestAnimationFrame(applyRestoration);
+            });
+            layoutObserver.observe(document.documentElement);
+            ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(eventName => {
+                addEventListener(eventName, cancelRestoration, { passive: true });
+            });
+
+            window.MarkLensScroll = {
+                restore(position) {
+                    activeRestoration = position;
+                    clearTimeout(restorationTimeout);
+                    restorationTimeout = setTimeout(cancelRestoration, 5000);
+                    applyRestoration();
+                },
+                report
+            };
+            scheduleReport();
+        })();
+        """
 
     static func customCSSUpdateScript(for css: String) -> String {
         guard let identifierData = try? JSONEncoder().encode(HTMLFeature.customCSSStyleElementID),

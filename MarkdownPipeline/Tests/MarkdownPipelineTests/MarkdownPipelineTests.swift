@@ -8,6 +8,7 @@ struct FrontMatterTests {
         let result = FrontMatterExtractor().extract(from: input)
         #expect(result.frontMatter == nil)
         #expect(result.bodyMarkdown == input)
+        #expect(result.bodyLineOffset == 0)
     }
 
     @Test func validFrontMatterExtractsValues() {
@@ -22,6 +23,7 @@ struct FrontMatterTests {
         #expect(result.frontMatter?.title == "Something")
         #expect(result.frontMatter?.theme == "dark")
         #expect(result.bodyMarkdown == "# Content")
+        #expect(result.bodyLineOffset == 4)
     }
 
     @Test func malformedFrontMatterIsIgnored() {
@@ -33,6 +35,16 @@ struct FrontMatterTests {
         let result = FrontMatterExtractor().extract(from: input)
         #expect(result.frontMatter == nil)
         #expect(result.bodyMarkdown == input)
+        #expect(result.bodyLineOffset == 0)
+    }
+
+    @Test func windowsLineEndingsKeepLogicalSourceLines() {
+        let input = "---\r\ntitle: Windows\r\n---\r\n# Content"
+        let result = FrontMatterExtractor().extract(from: input)
+
+        #expect(result.frontMatter?.title == "Windows")
+        #expect(result.bodyMarkdown == "# Content")
+        #expect(result.bodyLineOffset == 3)
     }
 }
 

@@ -7,7 +7,7 @@ struct MarkdownPipelineConvenienceAPITests {
     @Test func renderHTMLFromInputProducesHTML() throws {
         let pipeline = MarkdownPipeline.defaultHTML()
         let document = try pipeline.renderHTML(from: .string("# Title"))
-        #expect(document.html.contains("<h1 id=\"title\">Title</h1>"))
+        #expect(document.html.contains("<h1 id=\"title\" data-marklens-source-line=\"1\">Title</h1>"))
     }
 
     @Test func writeToTemporaryFilePersistsHTML() throws {
@@ -15,7 +15,7 @@ struct MarkdownPipelineConvenienceAPITests {
         let document = try pipeline.renderHTML(from: .string("# Title"))
         let url = try document.writeToTemporaryFile()
         let contents = try String(contentsOf: url, encoding: .utf8)
-        #expect(contents.contains("<h1 id=\"title\">Title</h1>"))
+        #expect(contents.contains("<h1 id=\"title\" data-marklens-source-line=\"1\">Title</h1>"))
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
@@ -37,7 +37,7 @@ struct MarkdownPipelineConvenienceAPITests {
         #expect(document.html.contains("<div class=\"mermaid-block\" data-mermaid-diagram>") == false)
         #expect(document.html.contains(".mermaid-block {") == false)
         #expect(document.html.contains(".katex") == false)
-        #expect(document.html.contains("<pre><code"))
+        #expect(document.html.contains("<code class=\"lang-mermaid"))
     }
 
     @Test func composesAnEmptyCorePipeline() throws {
