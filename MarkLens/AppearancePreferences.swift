@@ -8,9 +8,9 @@ enum AppearancePreferences {
        Edit the values below.
        Delete a rule to use its default. */
 
-    body {
+    :root {
         font-family: system-ui, sans-serif;
-        font-size: 16px;
+        font-size: 100%;
     }
 
     h1, h2, h3, h4, h5, h6 {

@@ -1,6 +1,8 @@
 /* Markdown Styling */
 
 :root {
+    font-family: system-ui, sans-serif;
+    font-size: 100%;
     --text-light: #222;
     --text-dark: #f0f6fc;
     --header-light: #1d1d1f;
@@ -41,8 +43,7 @@
 body {
     color: var(--text-light);
     background-color: var(--background-light);
-    font-family: system-ui, sans-serif;
-    margin: 1em 2em;
+    margin: 1rem 2rem;
 }
 
 /* Headers */
@@ -52,11 +53,11 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--header-light);
 }
 
-h1 { font-size: 1.8em; }
-h2 { font-size: 1.4em; }
-h3 { font-size: 1.25em; }
-h4 { font-size: 1.1em; }
-h5, h6 { font-size: 1em; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.1rem; }
+h5, h6 { font-size: 1rem; }
 
 /* Avoid strong within headers */
 h1 strong, h2 strong,
