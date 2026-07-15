@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+- Added LaTeX math rendering with KaTeX.
+- Added Mermaid diagram rendering for fenced code blocks.
+- Added appearance settings for custom preview styles, including font family, font size, line height, content width, and custom CSS.
+- Improved preview typography scaling so custom font sizes apply consistently throughout rendered documents.
+
 ## 1.2.0
 
 - Added support for local Markdown links and linked images, resolved relative to the current document.
