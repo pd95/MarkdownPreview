@@ -1,0 +1,62 @@
+name: Web Dependencies
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/web-dependencies.yml"
+      - "MarkdownPipeline/Sources/MarkdownPipeline/KaTeXAssets.swift"
+      - "MarkdownPipeline/Sources/MarkdownPipeline/WebDependencyMetadata.generated.swift"
+      - "MarkdownPipeline/Sources/MarkdownPipeline/Resources/WebResources/**"
+      - "THIRD_PARTY_NOTICES"
+      - "Tools/.npmrc"
+      - "Tools/package-lock.json"
+      - "Tools/package.json"
+      - "Tools/web-dependencies-smoke.mjs"
+      - "Tools/web-dependencies.mjs"
+      - "WEB_DEPENDENCIES.json"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/web-dependencies.yml"
+      - "MarkdownPipeline/Sources/MarkdownPipeline/KaTeXAssets.swift"
+      - "MarkdownPipeline/Sources/MarkdownPipeline/WebDependencyMetadata.generated.swift"
+      - "MarkdownPipeline/Sources/MarkdownPipeline/Resources/WebResources/**"
+      - "THIRD_PARTY_NOTICES"
+      - "Tools/.npmrc"
+      - "Tools/package-lock.json"
+      - "Tools/package.json"
+      - "Tools/web-dependencies-smoke.mjs"
+      - "Tools/web-dependencies.mjs"
+      - "WEB_DEPENDENCIES.json"
+
+permissions:
+  contents: read
+
+jobs:
+  generated-assets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Tools/package-lock.json
+      - name: Install locked tooling without lifecycle scripts
+        run: npm --prefix Tools ci --ignore-scripts
+      - name: Verify generated assets and notices
+        run: npm --prefix Tools run web:verify
+      - name: Audit web dependency tree
+        run: npm --prefix Tools audit --audit-level=high
+      - name: Install Chromium
+        run: npm --prefix Tools exec -- playwright install --with-deps chromium
+      - name: Exercise vendored JavaScript
+        run: npm --prefix Tools run web:test
+
+  apple-integration:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run MarkdownPipeline tests with JavaScriptCore
+        run: swift test --package-path MarkdownPipeline

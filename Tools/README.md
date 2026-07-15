@@ -6,8 +6,8 @@ Install the Node dependencies once:
 
 ```bash
 npm install --prefix Tools
-npm --prefix Tools exec playwright install chromium  # Linux/container default
-npm --prefix Tools exec playwright install webkit    # macOS default
+npm --prefix Tools exec -- playwright install chromium  # Linux/container default
+npm --prefix Tools exec -- playwright install webkit    # macOS default
 ```
 
 ```bash
@@ -58,3 +58,45 @@ Screenshots are generated as full-page captures using these CSS width presets:
 - `narrow`: `720px` wide, minimum viewport height `760px`
 
 The page is captured to its full rendered height, but short documents still use at least the minimum viewport height. Screenshots use `deviceScaleFactor: 2`, so PNG pixel dimensions are doubled. This keeps the layout comparable to app-window point sizes while producing Retina-style screenshots.
+
+## Web Dependencies
+
+MarkLens bundles highlight.js, KaTeX, and Mermaid for offline rendering. Their exact npm versions are pinned in `Tools/package.json`, while `Tools/package-lock.json` records the downloaded package integrity. Node.js 20 or newer is required.
+
+Check for stable upstream releases without changing files:
+
+```bash
+npm --prefix Tools run web:check
+```
+
+The update command is deliberately non-mutating unless the latest versions are explicitly accepted:
+
+```bash
+npm --prefix Tools run web:update
+npm --prefix Tools run web:update -- --accept-latest
+```
+
+The accepted form stages all three packages in a temporary directory, runs `npm audit`, validates licenses and package layouts, and generates the complete output set before using atomic file replacements on the managed files. It then verifies the vendored assets, dependency inventory, license notices, and Swift font metadata. It never commits, tags, pushes, or creates a release. Commit or stash existing changes to managed dependency files before updating.
+
+For a controlled update or rollback, provide one or more exact semantic versions. Tags, ranges, URLs, and Git specifications are rejected; dependencies without an explicit version remain pinned:
+
+```bash
+npm --prefix Tools run web:update -- \
+    --highlightjs=11.11.1 \
+    --katex=0.17.0 \
+    --mermaid=11.15.0
+```
+
+To reproduce and validate the committed outputs from a fresh checkout:
+
+```bash
+npm --prefix Tools ci --ignore-scripts
+npm --prefix Tools run web:verify
+npm --prefix Tools exec -- playwright install chromium
+npm --prefix Tools run web:test
+swift test --package-path MarkdownPipeline
+```
+
+`web:generate` is available when deliberately rebuilding from the installed lockfile. Generated files are identified by `WEB_DEPENDENCIES.json`; edit the manager or package pins instead of editing those files directly.
+
+Before preparing a release, run `web:check`. If updates are wanted, update and review them in their own commit or pull request, validate the rendered fixtures, and only then prepare the changelog and release tag.

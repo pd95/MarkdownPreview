@@ -1,7 +1,20 @@
 {
   "name": "markdown-preview-tools",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "web:check": "node web-dependencies.mjs check",
+    "web:generate": "node web-dependencies.mjs generate",
+    "web:test": "node web-dependencies-smoke.mjs",
+    "web:update": "node web-dependencies.mjs update",
+    "web:verify": "node web-dependencies.mjs verify"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.56.1"
+    "@highlightjs/cdn-assets": "11.11.1",
+    "@playwright/test": "1.60.0",
+    "katex": "0.17.0",
+    "mermaid": "11.15.0"
   }
 }

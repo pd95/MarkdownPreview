@@ -14,36 +14,13 @@ struct KaTeXAssets: Sendable {
     private static let cached = try? loadUncached()
 
     private static func loadUncached() throws -> KaTeXAssets {
-        let fontNames = [
-            "KaTeX_AMS-Regular.woff2",
-            "KaTeX_Caligraphic-Bold.woff2",
-            "KaTeX_Caligraphic-Regular.woff2",
-            "KaTeX_Fraktur-Bold.woff2",
-            "KaTeX_Fraktur-Regular.woff2",
-            "KaTeX_Main-Bold.woff2",
-            "KaTeX_Main-BoldItalic.woff2",
-            "KaTeX_Main-Italic.woff2",
-            "KaTeX_Main-Regular.woff2",
-            "KaTeX_Math-BoldItalic.woff2",
-            "KaTeX_Math-Italic.woff2",
-            "KaTeX_SansSerif-Bold.woff2",
-            "KaTeX_SansSerif-Italic.woff2",
-            "KaTeX_SansSerif-Regular.woff2",
-            "KaTeX_Script-Regular.woff2",
-            "KaTeX_Size1-Regular.woff2",
-            "KaTeX_Size2-Regular.woff2",
-            "KaTeX_Size3-Regular.woff2",
-            "KaTeX_Size4-Regular.woff2",
-            "KaTeX_Typewriter-Regular.woff2",
-        ]
-
         var stylesheet = try ResourceLoader.stringResource("katex.min.css")
         stylesheet = stylesheet.replacingOccurrences(
             of: #",url\(fonts/[^)]*\.(?:woff|ttf)\) format\("(?:woff|truetype)"\)"#,
             with: "",
             options: .regularExpression
         )
-        let resources = try fontNames.map { name in
+        let resources = try WebDependencyMetadata.kaTeXFontNames.map { name in
             let identifier = "katex/\(name)"
             stylesheet = stylesheet.replacingOccurrences(
                 of: "fonts/\(name)",
