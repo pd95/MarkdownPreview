@@ -14,6 +14,7 @@ import AppKit
 struct MarkLensApp: App {
     @StateObject private var localDocumentAccess = LocalDocumentAccess()
 #if os(macOS)
+    @StateObject private var updateChecker = UpdateChecker()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 #endif
     @FocusedValue(\.printAction) private var printAction
@@ -28,6 +29,7 @@ struct MarkLensApp: App {
             ContentView(document: file.document, fileURL: file.fileURL)
                 .environmentObject(localDocumentAccess)
 #if os(macOS)
+                .environmentObject(updateChecker)
                 .onAppear {
                     // Make sure the app stops after the last window has been closed
                     appDelegate.exitAfterLastWindow = true

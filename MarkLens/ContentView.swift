@@ -20,8 +20,10 @@ struct DocumentScrollPosition: Equatable {
 }
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
 #if os(macOS)
     @Environment(\.openDocument) private var openDocument
+    @EnvironmentObject private var updateChecker: UpdateChecker
 #endif
     @EnvironmentObject private var localDocumentAccess: LocalDocumentAccess
     @AppStorage(AppearancePreferences.customCSSKey)
@@ -31,6 +33,7 @@ struct ContentView: View {
     let fileURL: URL?
 #if os(macOS)
     @State private var pendingLocalAccessRequest: LocalAccessRequest?
+    @State private var isUpdatePopoverPresented = false
     @State private var failedLocalImageURLs: Set<URL> = []
     @State private var wikiLinkMatches: [URL] = []
     @State private var wikiLinkMatchesRoot: URL?
@@ -228,8 +231,34 @@ struct ContentView: View {
                     }
                 }
 
-                if #available(macOS 26.0, *) {
-                    ToolbarSpacer()
+                if let release = updateChecker.availableRelease {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            isUpdatePopoverPresented = true
+                        } label: {
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.down.circle")
+                                        .foregroundStyle(Color.accentColor)
+                                    Text("Update")
+                                }
+
+                                Image(systemName: "arrow.down.circle")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .help("MarkLens \(release.displayVersion) is available")
+                        .accessibilityLabel("Update available: MarkLens \(release.displayVersion)")
+                        .accessibilityIdentifier("updateAvailableButton")
+                        .popover(isPresented: $isUpdatePopoverPresented, arrowEdge: .top) {
+                            UpdateAvailablePopover(release: release)
+                        }
+                    }
+
+                    if #available(macOS 26.0, *) {
+                        ToolbarSpacer()
+                    }
                 }
 
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -317,6 +346,19 @@ struct ContentView: View {
 #endif
             resetPreviewNavigationState()
         }
+#if os(macOS)
+        .task {
+            await updateChecker.checkIfDue()
+        }
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else {
+                return
+            }
+            Task {
+                await updateChecker.checkIfDue()
+            }
+        }
+#endif
         .onDisappear {
 #if os(macOS)
             cancelWikiResolution()
@@ -955,6 +997,12 @@ private struct PreviewFindBar: View {
 #endif
 
 #Preview {
+#if os(macOS)
     ContentView(document: MarkdownDocument())
         .environmentObject(LocalDocumentAccess())
+        .environmentObject(UpdateChecker())
+#else
+    ContentView(document: MarkdownDocument())
+        .environmentObject(LocalDocumentAccess())
+#endif
 }

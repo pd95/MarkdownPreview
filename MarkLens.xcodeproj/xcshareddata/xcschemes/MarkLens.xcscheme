@@ -112,6 +112,13 @@
             ReferencedContainer = "container:MarkLens.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "MARKLENS_MOCK_UPDATE_VERSION"
+            value = "99.0.0"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
