@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+
+- Added non-intrusive update notifications that check GitHub Releases weekly and provide direct access to the latest release from the toolbar.
+- Added synchronized scroll positioning between the rendered preview and raw Markdown editor when switching modes.
+- Improved web dependency maintenance with reproducible updates, automated verification, and CI auditing for bundled rendering libraries.
+
 ## 1.3.0
 
 - Added LaTeX math rendering with KaTeX.
