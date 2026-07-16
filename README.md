@@ -1,39 +1,76 @@
 # MarkLens
 
-View Markdown documents in iOS and macOS (plus a Quick Look extension for fast previews in Finder!).
+View Markdown documents on iOS and macOS, with a Quick Look extension for fast previews in Finder.
 
 ## Features
-- Markdown rendering with a lightweight SwiftUI app.
-- Raw markdown editor with toolbar shortcuts for quick edits.
-- Bundled HTML/CSS/JS templates for consistent styling.
-- Copy buttons on code blocks.
-- Quick Look extension for Finder previews.
+
+- GitHub Flavored Markdown rendering with syntax highlighting and copy buttons for code blocks.
+- LaTeX math rendering with KaTeX and Mermaid diagram rendering for fenced code blocks.
+- Raw Markdown editing with toolbar shortcuts, search, and synchronized preview/source scrolling.
+- Local links and images, plus wiki-style links and in-app wiki navigation on macOS.
+- Customizable preview typography, content width, and CSS on macOS.
+- Printing and page setup on macOS.
+- Quick Look previews in Finder.
 
 ## Requirements
-- Xcode 26
-- macOS 15.6 or an iOS 17.6 device
+
+Development requires Xcode 26 running on a compatible version of macOS.
+
+MarkLens supports:
+
+- macOS 15.6 or later
+- iOS 17.6 or later
 
 ## Build
+
 Open the project:
+
 ```sh
 open MarkLens.xcodeproj
 ```
 
-Build from the CLI:
+Build the app from the command line:
+
 ```sh
 xcodebuild -project MarkLens.xcodeproj -scheme MarkLens -configuration Debug build
 ```
 
+Build the Quick Look extension:
+
+```sh
+xcodebuild -project MarkLens.xcodeproj -scheme QuickLookPreview_macOS -configuration Debug build
+```
+
+## Test
+
+Run the Markdown pipeline tests on any supported Swift development platform:
+
+```sh
+swift test --package-path MarkdownPipeline
+```
+
+Run the app unit and UI tests on macOS:
+
+```sh
+xcodebuild -project MarkLens.xcodeproj -scheme MarkLens -destination 'platform=macOS' test
+```
+
 ## Project Layout
-- `MarkLens/` app sources
-- `QuickLookPreview_macOS/` Quick Look extension
-- `Shared/` shared Swift code and web assets
+
+- `MarkLens/` contains the SwiftUI app and app-specific web resources.
+- `QuickLookPreview_macOS/` contains the macOS Quick Look extension.
+- `MarkdownPipeline/` contains the shared Markdown renderer, bundled web assets, and pipeline tests.
+- `Shared/` contains Swift code shared by the app and extension.
+- `MarkLensTests/` and `MarkLensUITests/` contain app integration and UI tests.
 
 ## Future Tasks
+
 - Consider adding a custom print panel accessory for header/footer toggles and margin presets.
 
 ## License
+
 MIT. See `LICENSE`.
 
 ## Third-Party Notices
+
 See `THIRD_PARTY_NOTICES`.
