@@ -56,6 +56,14 @@ final class MarkLensUITests: XCTestCase {
         preview.submitSearch()
         capture(preview.window, name: "search-sample-search-think")
     }
+
+    @MainActor
+    func testCancelDismissesPrintDialog() throws {
+        let preview = XCUIApplication().openDocument(named: "sample", fileExtension: "md")
+        defer { preview.terminate() }
+
+        preview.cancelPrint()
+    }
 }
 
 private extension XCUIApplication {
@@ -160,6 +168,25 @@ private struct MarkLensAppHandle {
         XCTAssertTrue(button.waitForExistence(timeout: 2), "Expected done search button.")
         button.click()
         XCTAssertFalse(findField.exists, "Expected preview find field to close.")
+    }
+
+    func cancelPrint() {
+        contentView.typeKey("p", modifierFlags: .command)
+
+        let printSheet = window.sheets.firstMatch
+        XCTAssertTrue(printSheet.waitForExistence(timeout: 5), "Expected the print dialog to appear.")
+
+        let cancelButton = printSheet.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5), "Expected the print dialog to appear.")
+        cancelButton.click()
+        XCTAssertTrue(
+            printSheet.waitForNonExistence(timeout: 2),
+            "Expected the print dialog to stay dismissed after cancellation."
+        )
+        XCTAssertFalse(
+            window.sheets.firstMatch.waitForExistence(timeout: 1),
+            "Expected the print dialog not to reappear after cancellation."
+        )
     }
 
     func terminate() {

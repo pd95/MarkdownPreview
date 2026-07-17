@@ -452,6 +452,40 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("class=\"hljs") == false)
     }
 
+    @Test func embedsPrintSafeCodeBlockStyles() throws {
+        let code = "    let value = 1\n\tidentifier-without-soft-wrap-opportunities"
+        let input = "```swift\n\(code)\n```"
+        let pipeline = MarkdownPipeline()
+        let context = PipelineContext(enableCodeHighlighting: false)
+        let document = try pipeline.render(input: .string(input), context: context)
+
+        #expect(document.html.contains("<code class=\"lang-swift\">\(code)\n</code>"))
+        #expect(document.html.contains("break-after: avoid-page"))
+        #expect(document.html.contains("page-break-after: avoid"))
+        #expect(document.html.contains("break-before: avoid-page"))
+        #expect(document.html.contains("page-break-before: avoid"))
+        #expect(document.html.contains("border-width: 0 0 0 0.1875rem"))
+        #expect(document.html.contains("white-space: pre-wrap"))
+        #expect(document.html.contains("overflow-wrap: anywhere"))
+        #expect(document.html.contains("orphans: 2"))
+        #expect(document.html.contains("widows: 2"))
+    }
+
+    @Test func embedsPrintHeadingAndParagraphPaginationStyles() throws {
+        let pipeline = MarkdownPipeline()
+        let document = try pipeline.render(
+            input: .string("## Heading\n\nA paragraph that follows the heading."),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains("h1 + *"))
+        #expect(document.html.contains("h6 + *"))
+        #expect(document.html.contains("break-after: avoid-page"))
+        #expect(document.html.contains("break-before: avoid-page"))
+        #expect(document.html.contains("orphans: 3"))
+        #expect(document.html.contains("widows: 3"))
+    }
+
     @Test func rendersFencedCodeInsideFencedCodeAsLiteralText() throws {
         let input = """
         ```markdown

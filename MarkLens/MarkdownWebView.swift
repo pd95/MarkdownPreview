@@ -209,6 +209,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         var isSearchInstalled = false
         var searchGeneration = 0
         var pendingPrintRequest = false
+        var isPrintScheduled = false
         var latestScrollRequest = 0
 
         init(parent: MarkdownWebView) {
@@ -387,20 +388,31 @@ struct MarkdownWebView: PlatformViewRepresentable {
             guard parent.printRequested else { return }
 
             if isPageReady {
-                Task { @MainActor in
-                    parent.printRequested = false
-
-                    try? await Task.sleep(for: .milliseconds(50))
-
-                    printCurrentDocument()
-                }
+                schedulePrint()
             } else {
                 pendingPrintRequest = true
             }
         }
 
+        private func schedulePrint() {
+            guard isPrintScheduled == false else { return }
+            isPrintScheduled = true
+            pendingPrintRequest = false
+
+            Task { @MainActor in
+                parent.printRequested = false
+
+                try? await Task.sleep(for: .milliseconds(50))
+
+                printCurrentDocument()
+            }
+        }
+
         func printCurrentDocument() {
-            guard let webView else { return }
+            guard let webView else {
+                isPrintScheduled = false
+                return
+            }
 
 #if os(macOS)
             let printInfo = NSPrintInfo.shared
@@ -419,9 +431,15 @@ struct MarkdownWebView: PlatformViewRepresentable {
             printOperation.view?.frame = webView.bounds
 
             if let window = webView.window {
-                printOperation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+                printOperation.runModal(
+                    for: window,
+                    delegate: self,
+                    didRun: #selector(printOperationDidRun(_:success:contextInfo:)),
+                    contextInfo: nil
+                )
             } else {
                 printOperation.run()
+                isPrintScheduled = false
             }
 #else
             let printController = UIPrintInteractionController.shared
@@ -430,13 +448,43 @@ struct MarkdownWebView: PlatformViewRepresentable {
             printController.printInfo = printInfo
             printController.printFormatter = webView.viewPrintFormatter()
 
+            let wasPresented: Bool
             if UIDevice.current.userInterfaceIdiom == .pad {
-                printController.present(from: webView.bounds, in: webView, animated: true, completionHandler: nil)
+                wasPresented = printController.present(
+                    from: webView.bounds,
+                    in: webView,
+                    animated: true,
+                    completionHandler: printCompletion
+                )
             } else {
-                printController.present(animated: true, completionHandler: nil)
+                wasPresented = printController.present(
+                    animated: true,
+                    completionHandler: printCompletion
+                )
+            }
+            if wasPresented == false {
+                isPrintScheduled = false
             }
 #endif
         }
+
+#if os(macOS)
+        @objc private func printOperationDidRun(
+            _ operation: NSPrintOperation,
+            success: Bool,
+            contextInfo: UnsafeMutableRawPointer?
+        ) {
+            isPrintScheduled = false
+        }
+#else
+        private func printCompletion(
+            _ controller: UIPrintInteractionController,
+            _ completed: Bool,
+            _ error: Error?
+        ) {
+            isPrintScheduled = false
+        }
+#endif
 
         private func openExternalURL(_ url: URL) {
 #if os(macOS)
@@ -519,8 +567,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 self.latestFindRequest = self.parent.findRequest
 
                 if self.pendingPrintRequest || self.parent.printRequested {
-                    self.pendingPrintRequest = false
-                    self.printCurrentDocument()
+                    self.schedulePrint()
                 }
             }
         }
