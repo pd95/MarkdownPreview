@@ -194,11 +194,11 @@ final class WikiNavigationModel: ObservableObject {
 }
 
 enum WikiPageLoader {
-    private static let pipeline = MarkdownPipeline(
+    nonisolated private static let pipeline = MarkdownPipeline(
         plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid(), .customCSS()]
     )
 
-    static func load(url: URL, wikiRoot: URL) -> WikiPageLoadResult {
+    nonisolated static func load(url: URL, wikiRoot: URL) -> WikiPageLoadResult {
         guard isCurrentTaskCancelled() == false else { return .cancelled }
         do {
             let context = PipelineContext(title: url.lastPathComponent)

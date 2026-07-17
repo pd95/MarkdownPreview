@@ -6,9 +6,9 @@
 import Foundation
 
 enum BuildInfo {
-    static let releaseTag = "local"
-    static let tagVersion = "local"
-    static let shortCommit = "unknown"
+    nonisolated static let releaseTag = "local"
+    nonisolated static let tagVersion = "local"
+    nonisolated static let shortCommit = "unknown"
 
     static var marketingVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"

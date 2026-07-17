@@ -58,9 +58,9 @@ cat > "$BUILD_INFO_FILE" <<EOF
 import Foundation
 
 enum BuildInfo {
-    static let releaseTag = "$CI_TAG"
-    static let tagVersion = "$TAG_VERSION"
-    static let shortCommit = "$SHORT_COMMIT"
+    nonisolated static let releaseTag = "$CI_TAG"
+    nonisolated static let tagVersion = "$TAG_VERSION"
+    nonisolated static let shortCommit = "$SHORT_COMMIT"
 
     static var marketingVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
