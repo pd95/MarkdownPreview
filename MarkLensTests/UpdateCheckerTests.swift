@@ -198,7 +198,7 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertEqual(checker.availableRelease?.displayVersion, "99.0.0")
         XCTAssertEqual(
             checker.availableRelease?.htmlURL,
-            URL(string: "https://github.com/pd95/MarkdownPreview/releases/tag/v99.0.0")
+            URL(string: "https://github.com/pd95/MarkLens/releases/tag/v99.0.0")
         )
 
     }
@@ -262,7 +262,7 @@ final class UpdateCheckerTests: XCTestCase {
     nonisolated private static func releaseJSON(
         tag: String,
         body: String = "Release notes",
-        url: String = "https://github.com/pd95/MarkdownPreview/releases/tag/v1.1.0",
+        url: String = "https://github.com/pd95/MarkLens/releases/tag/v1.1.0",
         draft: Bool = false,
         prerelease: Bool = false
     ) -> Data {

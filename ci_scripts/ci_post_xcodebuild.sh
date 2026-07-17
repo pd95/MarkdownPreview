@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-pd95/MarkdownPreview}"
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-pd95/MarkLens}"
 GITHUB_API_URL="${GITHUB_API_URL:-https://api.github.com}"
 GITHUB_UPLOADS_URL="${GITHUB_UPLOADS_URL:-https://uploads.github.com}"
 APP_NAME="${APP_NAME:-MarkLens}"

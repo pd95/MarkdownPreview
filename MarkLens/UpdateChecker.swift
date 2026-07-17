@@ -115,7 +115,7 @@ final class UpdateChecker: ObservableObject {
     @Published private(set) var availableRelease: AvailableRelease?
 
     private static let releasesURL = URL(
-        string: "https://api.github.com/repos/pd95/MarkdownPreview/releases/latest"
+        string: "https://api.github.com/repos/pd95/MarkLens/releases/latest"
     )!
     private static let checkInterval: TimeInterval = 7 * 24 * 60 * 60
     private static let lastAttemptKey = "updateChecker.lastAttempt"
@@ -259,7 +259,7 @@ final class UpdateChecker: ObservableObject {
             : "v\(configuredVersion)"
         guard
             let releaseURL = URL(
-                string: "https://github.com/pd95/MarkdownPreview/releases/tag/\(tagName)"
+                string: "https://github.com/pd95/MarkLens/releases/tag/\(tagName)"
             )
         else {
             return nil
