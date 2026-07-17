@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0
+
+- Added native PDF and portable HTML export, an Open in Preview command, remembered export formats, and self-contained Mermaid and local-image output.
+- Improved printed-document pagination by keeping headings with following content, preventing orphaned code-block borders, and wrapping long code lines for paper output.
+- Enabled new Markdown documents with an editable starter, native untitled-document behavior, and links to the CommonMark and GitHub Flavored Markdown references.
+- Renamed the GitHub repository to MarkLens and corrected the app, Quick Look extension, and test bundle identifiers to use the `ch.doapp` namespace.
+- Fixed unsupported Highlight.js languages on macOS and resolved Swift concurrency warnings ahead of Swift 6 migration.
+
+> [!IMPORTANT]
+> The bundle identifier changed from `com.doapp.MarkLens` to `ch.doapp.MarkLens`. Existing users may need to reauthorize local folders and select MarkLens again as their default Markdown application.
+
 ## 1.4.0
 
 - Added non-intrusive update notifications that check GitHub Releases weekly and provide direct access to the latest release from the toolbar.
