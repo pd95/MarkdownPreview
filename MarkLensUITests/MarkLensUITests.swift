@@ -64,6 +64,16 @@ final class MarkLensUITests: XCTestCase {
 
         preview.cancelPrint()
     }
+
+    @MainActor
+    func testExportCancellationAndRenderedFormats() throws {
+        let preview = XCUIApplication().openDocument(named: "sample", fileExtension: "md")
+        defer { preview.terminate() }
+
+        preview.cancelExport()
+        try preview.exportAndVerifyContent(format: .pdf)
+        try preview.exportAndVerifyContent(format: .html)
+    }
 }
 
 private extension XCUIApplication {
@@ -79,24 +89,58 @@ private extension XCUIApplication {
             .url(forResource: baseName, withExtension: fileExtension) else {
             XCTFail("Could not locate fixture \(baseName).\(fileExtension).", file: file, line: line)
             launch()
-            return previewHandle(documentTitle: "\(baseName).\(fileExtension)", file: file, line: line)
+            return previewHandle(
+                documentTitle: "\(baseName).\(fileExtension)",
+                file: file,
+                line: line
+            )
         }
 
+        let exportDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MarkLensUITests-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(
+                at: exportDirectory,
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.copyItem(
+                at: fixtureURL,
+                to: exportDirectory.appendingPathComponent(fixtureURL.lastPathComponent)
+            )
+        } catch {
+            XCTFail("Could not prepare the temporary test document: \(error)", file: file, line: line)
+        }
+
+        let temporaryDocumentURL = exportDirectory.appendingPathComponent(fixtureURL.lastPathComponent)
+
         terminate()
+        launchEnvironment["MARKLENS_UI_TEST_EXPORT_DIRECTORY"] = exportDirectory.path
         launchArguments = [
             "-ApplePersistenceIgnoreState",
             "YES",
             "-CustomCSSOverrides",
             "",
-            fixtureURL.path
+            "-LastRenderedDocumentExportFormat",
+            "pdf",
+            temporaryDocumentURL.path
         ]
         launch()
 
-        return previewHandle(documentTitle: "\(baseName).\(fileExtension)", file: file, line: line)
+        return previewHandle(
+            documentTitle: "\(baseName).\(fileExtension)",
+            exportDirectoryURL: exportDirectory,
+            file: file,
+            line: line
+        )
     }
 
     @MainActor
-    func previewHandle(documentTitle: String, file: StaticString = #file, line: UInt = #line) -> MarkLensAppHandle {
+    func previewHandle(
+        documentTitle: String,
+        exportDirectoryURL: URL? = nil,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) -> MarkLensAppHandle {
         let window = windows[documentTitle].firstMatch
         XCTAssertTrue(
             window.waitForExistence(timeout: 5),
@@ -119,15 +163,33 @@ private extension XCUIApplication {
             XCTFail("Expected rendered markdown web view to appear.", file: file, line: line)
         }
 
-        return MarkLensAppHandle(app: self, window: window, contentView: contentView)
+        return MarkLensAppHandle(
+            app: self,
+            window: window,
+            contentView: contentView,
+            exportDirectoryURL: exportDirectoryURL
+        )
     }
 }
 
 @MainActor
 private struct MarkLensAppHandle {
+    enum ExportFormat {
+        case pdf
+        case html
+
+        var pathExtension: String {
+            switch self {
+            case .pdf: "pdf"
+            case .html: "html"
+            }
+        }
+    }
+
     let app: XCUIApplication
     let window: XCUIElement
     let contentView: XCUIElement
+    let exportDirectoryURL: URL?
 
     var findField: XCUIElement {
         app.textFields["previewFindField"].firstMatch
@@ -189,7 +251,107 @@ private struct MarkLensAppHandle {
         )
     }
 
+    func cancelExport() {
+        let exportSheet = openExportSheet()
+        let cancelButton = exportSheet.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 2), "Expected the Export cancel button.")
+        cancelButton.click()
+        XCTAssertTrue(
+            exportSheet.waitForNonExistence(timeout: 2),
+            "Expected the Export dialog to stay dismissed after cancellation."
+        )
+    }
+
+    func exportAndVerifyContent(format: ExportFormat) throws {
+        let exportDirectoryURL = try XCTUnwrap(exportDirectoryURL)
+        let filesBeforeExport = try exportedFiles(in: exportDirectoryURL)
+
+        let exportSheet = openExportSheet()
+        let formatPopup = formatPopup(in: exportSheet)
+        if format == .html {
+            formatPopup.click()
+            formatPopup.typeKey(.downArrow, modifierFlags: [])
+            formatPopup.typeKey(.return, modifierFlags: [])
+        }
+
+        let exportButton = exportSheet.buttons["Export"].firstMatch
+        XCTAssertTrue(exportButton.waitForExistence(timeout: 2), "Expected the Export button.")
+        exportButton.click()
+
+        // PDF generation may temporarily replace the save panel with another sheet.
+        // The file itself is the reliable signal that the asynchronous export finished.
+        let deadline = Date().addingTimeInterval(15)
+        var exportURL: URL?
+        while Date() < deadline {
+            exportURL = try exportedFiles(in: exportDirectoryURL).subtracting(filesBeforeExport).first
+            if exportURL != nil {
+                break
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        let unsafeDestinationAlert = app.alerts["Unsafe Test Export Destination"]
+        XCTAssertFalse(
+            unsafeDestinationAlert.waitForExistence(timeout: 1),
+            "The app rejected the temporary export directory."
+        )
+        let completedExportURL = try XCTUnwrap(
+            exportURL,
+            "Expected the export in the UI test's temporary directory."
+        )
+        defer { try? FileManager.default.removeItem(at: completedExportURL) }
+        XCTAssertEqual(completedExportURL.pathExtension, format.pathExtension)
+
+        let data = try Data(contentsOf: completedExportURL)
+        switch format {
+        case .pdf:
+            XCTAssertTrue(data.starts(with: Data("%PDF-".utf8)), "Expected a PDF file.")
+            XCTAssertGreaterThan(data.count, 2_000, "Expected rendered PDF content, not empty pages.")
+        case .html:
+            let html = try XCTUnwrap(String(data: data, encoding: .utf8))
+            XCTAssertTrue(html.contains("<!DOCTYPE html>"), "Expected an HTML document.")
+            XCTAssertTrue(html.contains("data-mermaid-diagram"), "Expected the Mermaid diagram markup.")
+            XCTAssertTrue(html.contains("mermaid.initialize"), "Expected the Mermaid renderer.")
+            XCTAssertFalse(html.contains("marklens-resource://"), "Expected app resources to be inlined.")
+            XCTAssertFalse(
+                html.contains("data:application/javascript"),
+                "Expected executable JavaScript to be safely inlined."
+            )
+        }
+    }
+
+    private func exportedFiles(in directory: URL) throws -> Set<URL> {
+        Set(try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ))
+    }
+
+    private func openExportSheet() -> XCUIElement {
+        contentView.typeKey("e", modifierFlags: [.command, .shift])
+
+        let exportSheet = window.sheets.firstMatch
+        XCTAssertTrue(exportSheet.waitForExistence(timeout: 5), "Expected the Export dialog to appear.")
+        _ = formatPopup(in: exportSheet)
+        return exportSheet
+    }
+
+    private func formatPopup(in exportSheet: XCUIElement) -> XCUIElement {
+        let popups = exportSheet.popUpButtons
+        XCTAssertGreaterThanOrEqual(
+            popups.count,
+            2,
+            "Expected separate path and file-format selectors."
+        )
+        let popup = popups.element(boundBy: popups.count - 1)
+        XCTAssertTrue(popup.waitForExistence(timeout: 2), "Expected the PDF and HTML format selector.")
+        return popup
+    }
+
     func terminate() {
         app.terminate()
+        if let exportDirectoryURL {
+            try? FileManager.default.removeItem(at: exportDirectoryURL)
+        }
     }
 }

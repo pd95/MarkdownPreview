@@ -42,7 +42,10 @@ struct ContentView: View {
     @State private var wikiResolutionWork: Task<WikiLinkResolution, Never>?
 #endif
     @State private var localDocumentError: String?
-    @State private var isPrintRequested = false
+    @State private var outputRequest: RenderedDocumentOutputRequest?
+    @State private var activeOutputOperationID: UUID?
+    @State private var outputErrorTitle: String?
+    @State private var outputErrorDescription: String?
     @State private var isRawEditing = false
     @State private var showFind = false
     @State private var rawDraft = ""
@@ -88,7 +91,12 @@ struct ContentView: View {
 #endif
                 },
                 reloadRequest: localDocumentAccess.accessRevision,
-                printRequested: $isPrintRequested,
+                outputRequest: $outputRequest,
+                activeOutputOperationID: $activeOutputOperationID,
+                outputFailed: { title, description in
+                    outputErrorTitle = title
+                    outputErrorDescription = description
+                },
                 findMatchCount: $previewFindMatchCount,
                 findCurrentIndex: $previewFindCurrentIndex,
                 findTerm: isRawEditing ? "" : previewFindText,
@@ -263,11 +271,12 @@ struct ContentView: View {
 
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
-                        isPrintRequested = true
+                        requestRenderedOutput(.print)
                     } label: {
                         Label("Print", systemImage: "printer")
                     }
                     .keyboardShortcut("p")
+                    .disabled(canProduceRenderedOutput == false)
 
                     Button {
                         beginPreviewFind()
@@ -387,6 +396,14 @@ struct ContentView: View {
         } message: {
             Text(activeErrorDescription ?? "The linked document could not be opened.")
         }
+        .alert(outputErrorTitle ?? "Unable to Complete Request", isPresented: outputErrorAlertPresented) {
+            Button("OK", role: .cancel) {
+                outputErrorTitle = nil
+                outputErrorDescription = nil
+            }
+        } message: {
+            Text(outputErrorDescription ?? "The rendered document could not be produced.")
+        }
 #if os(macOS)
         .sheet(
             isPresented: Binding(
@@ -405,9 +422,9 @@ struct ContentView: View {
         }
 #endif
 #if os(macOS)
-        .focusedSceneValue(\.printAction, PrintAction {
-            isPrintRequested = true
-        })
+        .focusedSceneValue(\.printAction, focusedPrintAction)
+        .focusedSceneValue(\.exportAction, focusedExportAction)
+        .focusedSceneValue(\.openInPreviewAction, focusedOpenInPreviewAction)
         .focusedSceneValue(\.pageSetupAction, PageSetupAction {
             let printInfo = NSPrintInfo.shared
             let pageLayout = NSPageLayout()
@@ -424,6 +441,141 @@ struct ContentView: View {
     private func rawString() -> String {
         document.text
     }
+
+#if os(macOS)
+    private var canProduceRenderedOutput: Bool {
+        isRawEditing == false && isWikiNavigationLoading == false && activeOutputOperationID == nil
+    }
+
+    private var focusedPrintAction: PrintAction {
+        PrintAction(isEnabled: canProduceRenderedOutput) {
+            guard canProduceRenderedOutput else { return }
+            requestRenderedOutput(.print)
+        }
+    }
+
+    private var focusedExportAction: ExportAction {
+        ExportAction(isEnabled: canProduceRenderedOutput) {
+            guard canProduceRenderedOutput else { return }
+            presentExportPanel()
+        }
+    }
+
+    private var focusedOpenInPreviewAction: OpenInPreviewAction {
+        OpenInPreviewAction(isEnabled: canProduceRenderedOutput) {
+            guard canProduceRenderedOutput else { return }
+            requestRenderedOutput(.preview)
+        }
+    }
+
+    private func requestRenderedOutput(_ destination: RenderedDocumentOutputRequest.Destination) {
+        guard activeOutputOperationID == nil else { return }
+        let request = RenderedDocumentOutputRequest(destination: destination)
+        activeOutputOperationID = request.id
+        outputRequest = request
+    }
+
+    private func presentExportPanel() {
+        let rememberedFormat = ExportPreferences.rememberedFormat()
+        let testExportDirectory = uiTestExportDirectory
+        let panel = NSSavePanel()
+        panel.title = "Export Rendered Document"
+        panel.prompt = "Export"
+        panel.allowedContentTypes = [.pdf, .html]
+        panel.showsContentTypes = true
+        panel.currentContentType = rememberedFormat.contentType
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.directoryURL = testExportDirectory ?? displayedURL?.deletingLastPathComponent()
+        panel.nameFieldStringValue = "\(suggestedExportName).\(rememberedFormat.pathExtension)"
+
+        let operationID = UUID()
+        activeOutputOperationID = operationID
+        let completion: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let selectedURL = panel.url else {
+                if activeOutputOperationID == operationID {
+                    activeOutputOperationID = nil
+                }
+                return
+            }
+
+            let format = RenderedDocumentExportFormat(contentType: panel.currentContentType)
+            let destinationURL = format.normalizedURL(selectedURL)
+            if let testExportDirectory,
+               LocalDocumentAccess.sameFolder(
+                   destinationURL.deletingLastPathComponent(),
+                   testExportDirectory
+               ) == false {
+                activeOutputOperationID = nil
+                outputErrorTitle = "Unsafe Test Export Destination"
+                outputErrorDescription = "The UI test export was blocked outside its temporary directory."
+                return
+            }
+            ExportPreferences.remember(format)
+            switch format {
+            case .html:
+                exportHTML(to: destinationURL, operationID: operationID)
+            case .pdf:
+                let request = RenderedDocumentOutputRequest(destination: .pdf(destinationURL))
+                activeOutputOperationID = request.id
+                outputRequest = request
+            }
+        }
+
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            completion(panel.runModal())
+        }
+    }
+
+    private var suggestedExportName: String {
+        let sourceName = displayedURL?.deletingPathExtension().lastPathComponent
+            ?? document.filename.map { URL(fileURLWithPath: $0).deletingPathExtension().lastPathComponent }
+            ?? "Untitled"
+        return sourceName.isEmpty ? "Untitled" : sourceName
+    }
+
+    private var uiTestExportDirectory: URL? {
+#if DEBUG
+        guard let path = ProcessInfo.processInfo.environment["MARKLENS_UI_TEST_EXPORT_DIRECTORY"],
+              path.isEmpty == false else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL
+#else
+        nil
+#endif
+    }
+
+    private func exportHTML(to destinationURL: URL, operationID: UUID) {
+        let html = displayedHTML
+        let resources = displayedResources
+        let css = customCSS
+        let sourceURL = displayedURL
+
+        Task {
+            let errorDescription = await Task.detached(priority: .userInitiated) {
+                do {
+                    try RenderedHTMLExporter.export(
+                        html: html,
+                        resources: resources,
+                        customCSS: css,
+                        sourceURL: sourceURL,
+                        to: destinationURL
+                    )
+                    return nil as String?
+                } catch {
+                    return error.localizedDescription
+                }
+            }.value
+
+            if activeOutputOperationID == operationID {
+                activeOutputOperationID = nil
+            }
+            outputErrorTitle = errorDescription == nil ? nil : "Unable to Export HTML"
+            outputErrorDescription = errorDescription
+        }
+    }
+#endif
 
     private func beginRawEditing() {
         rawDraft = rawString()
@@ -544,6 +696,18 @@ struct ContentView: View {
                 if !$0 {
                     localDocumentError = nil
                     wikiNavigation.errorDescription = nil
+                }
+            }
+        )
+    }
+
+    private var outputErrorAlertPresented: Binding<Bool> {
+        Binding(
+            get: { outputErrorDescription != nil },
+            set: {
+                if $0 == false {
+                    outputErrorTitle = nil
+                    outputErrorDescription = nil
                 }
             }
         )

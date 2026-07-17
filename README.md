@@ -9,6 +9,7 @@ View Markdown documents on iOS and macOS, with a Quick Look extension for fast p
 - Raw Markdown editing with toolbar shortcuts, search, and synchronized preview/source scrolling.
 - Local links and images, plus wiki-style links and in-app wiki navigation on macOS.
 - Customizable preview typography, content width, and CSS on macOS.
+- PDF and portable HTML export bundling app resources and local images on macOS, plus direct paginated review in Preview; remote content remains linked.
 - Printing and page setup on macOS.
 - Quick Look previews in Finder.
 

@@ -18,6 +18,8 @@ struct MarkLensApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 #endif
     @FocusedValue(\.printAction) private var printAction
+    @FocusedValue(\.exportAction) private var exportAction
+    @FocusedValue(\.openInPreviewAction) private var openInPreviewAction
     @FocusedValue(\.pageSetupAction) private var pageSetupAction
 
     init() {
@@ -39,16 +41,36 @@ struct MarkLensApp: App {
         .defaultSize(.defaultWindowSize)
 #if os(macOS)
         .commands {
+            CommandGroup(after: .saveItem) {
+                Button {
+                    exportAction?.run()
+                } label: {
+                    Label("Export…", systemImage: "square.and.arrow.up")
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(exportAction?.isEnabled != true)
+            }
             CommandGroup(replacing: .printItem) {
-                Button("Print…") {
+                Button {
                     printAction?.run()
+                } label: {
+                    Label("Print…", systemImage: "printer")
                 }
                 .keyboardShortcut("p")
-                .disabled(printAction == nil)
+                .disabled(printAction?.isEnabled != true)
             }
             CommandGroup(before: .printItem) {
-                Button("Page Setup…") {
+                Button {
+                    openInPreviewAction?.run()
+                } label: {
+                    Label("Open in Preview", systemImage: "doc.text.magnifyingglass")
+                }
+                .disabled(openInPreviewAction?.isEnabled != true)
+
+                Button {
                     pageSetupAction?.run()
+                } label: {
+                    Label("Page Setup…", systemImage: "doc")
                 }
                 .keyboardShortcut("P", modifiers: [.command, .shift])
                 .disabled(pageSetupAction == nil)

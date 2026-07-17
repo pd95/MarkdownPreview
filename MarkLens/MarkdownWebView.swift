@@ -24,7 +24,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var requestLocalDocumentAccess: (URL, String) -> Void
     var localImagePermissionDenied: (URL) -> Void
     var reloadRequest: Int
-    @Binding var printRequested: Bool
+    @Binding var outputRequest: RenderedDocumentOutputRequest?
+    @Binding var activeOutputOperationID: UUID?
+    var outputFailed: (String, String) -> Void
     @Binding var findMatchCount: Int
     @Binding var findCurrentIndex: Int
     var findTerm: String
@@ -48,7 +50,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
         requestLocalDocumentAccess: @escaping (URL, String) -> Void = { _, _ in },
         localImagePermissionDenied: @escaping (URL) -> Void = { _ in },
         reloadRequest: Int = 0,
-        printRequested: Binding<Bool> = .constant(false),
+        outputRequest: Binding<RenderedDocumentOutputRequest?> = .constant(nil),
+        activeOutputOperationID: Binding<UUID?> = .constant(nil),
+        outputFailed: @escaping (String, String) -> Void = { _, _ in },
         findMatchCount: Binding<Int> = .constant(0),
         findCurrentIndex: Binding<Int> = .constant(0),
         findTerm: String = "",
@@ -68,7 +72,9 @@ struct MarkdownWebView: PlatformViewRepresentable {
         self.requestLocalDocumentAccess = requestLocalDocumentAccess
         self.localImagePermissionDenied = localImagePermissionDenied
         self.reloadRequest = reloadRequest
-        self._printRequested = printRequested
+        self._outputRequest = outputRequest
+        self._activeOutputOperationID = activeOutputOperationID
+        self.outputFailed = outputFailed
         self._findMatchCount = findMatchCount
         self._findCurrentIndex = findCurrentIndex
         self.findTerm = findTerm
@@ -148,6 +154,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         view.uiDelegate = nil
         view.configuration.userContentController.removeScriptMessageHandler(forName: Self.scrollMessageHandler)
         coordinator.searchGeneration += 1
+        coordinator.cancelOutput()
         coordinator.webView = nil
     }
 
@@ -208,8 +215,8 @@ struct MarkdownWebView: PlatformViewRepresentable {
         var latestCustomCSS: String?
         var isSearchInstalled = false
         var searchGeneration = 0
-        var pendingPrintRequest = false
-        var isPrintScheduled = false
+        var pendingOutputRequest: RenderedDocumentOutputRequest?
+        var activeOutputRequest: RenderedDocumentOutputRequest?
         var latestScrollRequest = 0
 
         init(parent: MarkdownWebView) {
@@ -254,7 +261,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 }
             }
 
-            handlePrintRequest()
+            handleOutputRequest()
         }
 
         func userContentController(
@@ -384,38 +391,36 @@ struct MarkdownWebView: PlatformViewRepresentable {
             return script
         }()
 
-        func handlePrintRequest() {
-            guard parent.printRequested else { return }
-
+        func handleOutputRequest() {
+            guard let request = parent.outputRequest else { return }
+            clearOutputBinding(for: request)
+            guard activeOutputRequest == nil else { return }
             if isPageReady {
-                schedulePrint()
+                scheduleOutput(request)
             } else {
-                pendingPrintRequest = true
+                pendingOutputRequest = request
             }
         }
 
-        private func schedulePrint() {
-            guard isPrintScheduled == false else { return }
-            isPrintScheduled = true
-            pendingPrintRequest = false
+        private func scheduleOutput(_ request: RenderedDocumentOutputRequest) {
+            guard activeOutputRequest == nil else { return }
+            activeOutputRequest = request
+            pendingOutputRequest = nil
 
             Task { @MainActor in
-                parent.printRequested = false
-
                 try? await Task.sleep(for: .milliseconds(50))
-
-                printCurrentDocument()
+                runOutput(request)
             }
         }
 
-        func printCurrentDocument() {
+        func runOutput(_ request: RenderedDocumentOutputRequest) {
             guard let webView else {
-                isPrintScheduled = false
+                finishOutput(success: false)
                 return
             }
 
 #if os(macOS)
-            let printInfo = NSPrintInfo.shared
+            let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
             printInfo.horizontalPagination = .fit
             printInfo.verticalPagination = .automatic
 
@@ -425,8 +430,21 @@ struct MarkdownWebView: PlatformViewRepresentable {
             printInfo.topMargin = 1.0 * cmToPrint
             printInfo.bottomMargin = 1.0 * cmToPrint
 
+            switch request.destination {
+            case .print:
+                printInfo.jobDisposition = .spool
+            case .preview:
+                printInfo.jobDisposition = .preview
+            case .pdf(let url):
+                printInfo.jobDisposition = .save
+                printInfo.dictionary().setObject(
+                    url as NSURL,
+                    forKey: NSPrintInfo.AttributeKey.jobSavingURL.rawValue as NSString
+                )
+            }
+
             let printOperation = webView.printOperation(with: printInfo)
-            printOperation.showsPrintPanel = true
+            printOperation.showsPrintPanel = request.destination == .print
             printOperation.showsProgressPanel = true
             printOperation.view?.frame = webView.bounds
 
@@ -438,10 +456,13 @@ struct MarkdownWebView: PlatformViewRepresentable {
                     contextInfo: nil
                 )
             } else {
-                printOperation.run()
-                isPrintScheduled = false
+                finishOutput(success: printOperation.run())
             }
 #else
+            guard request.destination == .print else {
+                finishOutput(success: false)
+                return
+            }
             let printController = UIPrintInteractionController.shared
             let printInfo = UIPrintInfo.printInfo()
             printInfo.jobName = "MarkLens"
@@ -463,7 +484,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 )
             }
             if wasPresented == false {
-                isPrintScheduled = false
+                finishOutput(success: false)
             }
 #endif
         }
@@ -474,7 +495,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
             success: Bool,
             contextInfo: UnsafeMutableRawPointer?
         ) {
-            isPrintScheduled = false
+            finishOutput(success: success)
         }
 #else
         private func printCompletion(
@@ -482,9 +503,71 @@ struct MarkdownWebView: PlatformViewRepresentable {
             _ completed: Bool,
             _ error: Error?
         ) {
-            isPrintScheduled = false
+            finishOutput(success: error == nil)
         }
 #endif
+
+        private func finishOutput(success: Bool) {
+            guard let completedRequest = activeOutputRequest else { return }
+            activeOutputRequest = nil
+            pendingOutputRequest = nil
+            if parent.activeOutputOperationID == completedRequest.id {
+                parent.activeOutputOperationID = nil
+            }
+
+            guard success == false else { return }
+            switch completedRequest.destination {
+            case .print:
+                break
+            case .preview:
+                parent.outputFailed(
+                    "Unable to Open in Preview",
+                    "The rendered document could not be opened in Preview."
+                )
+            case .pdf:
+                parent.outputFailed(
+                    "Unable to Export PDF",
+                    "The rendered document could not be exported as a PDF."
+                )
+            }
+        }
+
+        func cancelOutput() {
+            let canceledRequestIDs = Set([
+                activeOutputRequest?.id,
+                pendingOutputRequest?.id,
+                parent.outputRequest?.id,
+            ].compactMap { $0 })
+            let outputRequestBinding = parent.$outputRequest
+            let activeOperationBinding = parent.$activeOutputOperationID
+            activeOutputRequest = nil
+            pendingOutputRequest = nil
+
+            Task { @MainActor in
+                guard let operationID = activeOperationBinding.wrappedValue,
+                      canceledRequestIDs.contains(operationID) else { return }
+                if outputRequestBinding.wrappedValue?.id == operationID {
+                    outputRequestBinding.wrappedValue = nil
+                }
+                activeOperationBinding.wrappedValue = nil
+            }
+        }
+
+        private func clearOutputBinding(for request: RenderedDocumentOutputRequest) {
+            Task { @MainActor [weak self] in
+                guard let self, self.parent.outputRequest?.id == request.id else { return }
+                self.parent.outputRequest = nil
+            }
+        }
+
+        private func failPendingOutput() {
+            guard activeOutputRequest == nil,
+                  let request = pendingOutputRequest ?? parent.outputRequest else { return }
+            activeOutputRequest = request
+            pendingOutputRequest = nil
+            clearOutputBinding(for: request)
+            finishOutput(success: false)
+        }
 
         private func openExternalURL(_ url: URL) {
 #if os(macOS)
@@ -566,10 +649,29 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 self.latestFindTerm = self.parent.findTerm
                 self.latestFindRequest = self.parent.findRequest
 
-                if self.pendingPrintRequest || self.parent.printRequested {
-                    self.schedulePrint()
+                if let request = self.pendingOutputRequest ?? self.parent.outputRequest {
+                    self.clearOutputBinding(for: request)
+                    self.scheduleOutput(request)
                 }
             }
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            didFail navigation: WKNavigation!,
+            withError error: Error
+        ) {
+            isPageReady = false
+            failPendingOutput()
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            didFailProvisionalNavigation navigation: WKNavigation!,
+            withError error: Error
+        ) {
+            isPageReady = false
+            failPendingOutput()
         }
     }
 
