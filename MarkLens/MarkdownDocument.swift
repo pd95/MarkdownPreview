@@ -23,6 +23,29 @@ final class MarkdownDocument: ReferenceFileDocument {
         plugins: [.wikiLinks(), .syntaxHighlighting(), .math(), .mermaid(), .customCSS()]
     )
 
+    static let starterText = """
+        # Welcome to MarkLens
+
+        This is a new Markdown document. Choose **Edit Source** in the toolbar or press `⌘E` in MarkLens to edit its source.
+
+        ## Quick start
+
+        Use **bold**, *italic*, `inline code`, and [links](https://commonmark.org/help/).
+
+        - Create lists with hyphens
+        - Add headings with `#`
+        - Quote text with `>`
+
+        ```swift
+        let message = "Hello, Markdown!"
+        ```
+
+        ## Learn more
+
+        - [CommonMark quick reference](https://commonmark.org/help/)
+        - [GitHub Flavored Markdown specification](https://github.github.com/gfm/)
+        """
+
     init(text: String = "") {
         self.text = text
         self.filename = nil

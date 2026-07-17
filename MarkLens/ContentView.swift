@@ -326,7 +326,7 @@ struct ContentView: View {
                     Button {
                         beginRawEditing()
                     } label: {
-                        Label("Raw", systemImage: "square.and.pencil")
+                        Label("Edit Source", systemImage: "square.and.pencil")
                     }
                     .keyboardShortcut("e")
                     .disabled(wikiNavigation.isBrowsing)

@@ -27,7 +27,9 @@ struct MarkLensApp: App {
     }
 
     var body: some Scene {
-        DocumentGroup(viewing: MarkdownDocument.self) { file in
+        DocumentGroup(
+            newDocument: { MarkdownDocument(text: MarkdownDocument.starterText) }
+        ) { file in
             ContentView(document: file.document, fileURL: file.fileURL)
                 .environmentObject(localDocumentAccess)
 #if os(macOS)

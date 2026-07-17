@@ -22,6 +22,14 @@ final class MarkLensUITests: XCTestCase {
     }
 
     @MainActor
+    func testCreatesStarterDocument() throws {
+        let preview = XCUIApplication().openDocument(named: "sample", fileExtension: "md")
+        defer { preview.terminate() }
+
+        preview.createStarterDocument()
+    }
+
+    @MainActor
     func testOpenFileRecorded() throws {
         let preview = XCUIApplication().openDocument(named: "search-sample", fileExtension: "md")
         defer { preview.terminate() }
@@ -202,6 +210,50 @@ private struct MarkLensAppHandle {
 
         contentView.typeKey("f", modifierFlags: .command)
         XCTAssertTrue(findField.waitForExistence(timeout: 5), "Expected preview find field to appear.")
+    }
+
+    func createStarterDocument() {
+        let originalWindowCount = app.windows.count
+        let previews = app.webViews
+        let originalPreviewCount = previews.count
+        let fileMenu = app.menuBars.menuBarItems["File"]
+        fileMenu.click()
+
+        let newItem = fileMenu.menus.menuItems["New"]
+        XCTAssertTrue(newItem.waitForExistence(timeout: 2), "Expected the File → New command.")
+        XCTAssertTrue(newItem.isEnabled, "Expected File → New to be enabled.")
+        newItem.click()
+
+        let deadline = Date().addingTimeInterval(5)
+        while app.windows.count <= originalWindowCount, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTAssertGreaterThan(
+            app.windows.count,
+            originalWindowCount,
+            "Expected File → New to create another document window."
+        )
+
+        let previewDeadline = Date().addingTimeInterval(5)
+        while previews.count <= originalPreviewCount, Date() < previewDeadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTAssertGreaterThan(
+            previews.count,
+            originalPreviewCount,
+            "Expected the new Markdown document to display its rendered preview."
+        )
+
+        app.typeKey("e", modifierFlags: .command)
+        let sourceEditor = app.textViews["Markdown source editor"].firstMatch
+        XCTAssertTrue(
+            sourceEditor.waitForExistence(timeout: 5),
+            "Expected the new document to expose its editable Markdown source."
+        )
+        XCTAssertTrue(
+            (sourceEditor.value as? String)?.contains("# Welcome to MarkLens") == true,
+            "Expected File → New to use the Markdown starter."
+        )
     }
 
     func search(_ text: String) {
