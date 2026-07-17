@@ -6,6 +6,10 @@ struct ReleaseVersion: Comparable, Equatable {
     private let components: [Int]
     private let prereleaseIdentifiers: [String]?
 
+    var isPrerelease: Bool {
+        prereleaseIdentifiers != nil
+    }
+
     init?(_ value: String) {
         var value = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.first?.lowercased() == "v" {
@@ -83,11 +87,32 @@ struct ReleaseVersion: Comparable, Equatable {
                 case (nil, .some):
                     return false
                 case (nil, nil):
+                    if let leftParts = splitTrailingNumber(left[index]),
+                        let rightParts = splitTrailingNumber(right[index]),
+                        leftParts.prefix == rightParts.prefix,
+                        leftParts.number != rightParts.number
+                    {
+                        return leftParts.number < rightParts.number
+                    }
                     return left[index] < right[index]
                 }
             }
             return left.count < right.count
         }
+    }
+
+    private static func splitTrailingNumber(_ value: String) -> (prefix: Substring, number: Int)? {
+        guard let lastNonDigit = value.lastIndex(where: { $0.isNumber == false }) else {
+            return nil
+        }
+        let digitStart = value.index(after: lastNonDigit)
+        let digits = value[digitStart...]
+        guard digitStart != value.endIndex,
+            let number = Int(digits)
+        else {
+            return nil
+        }
+        return (value[..<digitStart], number)
     }
 }
 
@@ -96,6 +121,34 @@ struct AvailableRelease: Codable, Equatable {
     let name: String?
     let body: String
     let htmlURL: URL
+    let prerelease: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case tagName
+        case name
+        case body
+        case htmlURL
+        case prerelease
+    }
+
+    init(tagName: String, name: String?, body: String, htmlURL: URL, prerelease: Bool) {
+        self.tagName = tagName
+        self.name = name
+        self.body = body
+        self.htmlURL = htmlURL
+        self.prerelease = prerelease
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        tagName = try container.decode(String.self, forKey: .tagName)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        body = try container.decode(String.self, forKey: .body)
+        htmlURL = try container.decode(URL.self, forKey: .htmlURL)
+        prerelease = try container.decodeIfPresent(Bool.self, forKey: .prerelease)
+            ?? ReleaseVersion(tagName)?.isPrerelease
+            ?? false
+    }
 
     var displayVersion: String {
         tagName.first?.lowercased() == "v" ? String(tagName.dropFirst()) : tagName
@@ -113,21 +166,30 @@ final class UpdateChecker: ObservableObject {
     typealias HTTPRequest = (URLRequest) async throws -> UpdateHTTPResponse
 
     @Published private(set) var availableRelease: AvailableRelease?
+    @Published private(set) var lastSuccessfulCheck: Date?
+    @Published private(set) var lastCheckFailed = false
 
-    private static let releasesURL = URL(
+    private static let stableReleaseURL = URL(
         string: "https://api.github.com/repos/pd95/MarkLens/releases/latest"
+    )!
+    private static let allReleasesURL = URL(
+        string: "https://api.github.com/repos/pd95/MarkLens/releases?per_page=20"
     )!
     private static let checkInterval: TimeInterval = 7 * 24 * 60 * 60
     private static let lastAttemptKey = "updateChecker.lastAttempt"
+    private static let lastSuccessfulCheckKey = "updateChecker.lastSuccessfulCheck"
+    private static let lastSuccessfulChannelKey = "updateChecker.lastSuccessfulChannel"
     private static let cachedReleaseKey = "updateChecker.cachedRelease"
     private static let etagKey = "updateChecker.etag"
 
     private let currentVersion: String
     private let automaticChecksEnabled: Bool
+    private let manualChecksEnabled: Bool
     private let defaults: UserDefaults
     private let now: () -> Date
     private let request: HTTPRequest
-    private var activeCheck: Task<Void, Never>?
+    private var activeCheck: Task<Bool, Never>?
+    private var activeCheckID = 0
 
     init(
         currentVersion: String = BuildInfo.tagVersion,
@@ -142,19 +204,30 @@ final class UpdateChecker: ObservableObject {
         #else
         let mockRelease: AvailableRelease? = nil
         #endif
-        self.currentVersion = currentVersion
+        self.currentVersion = currentVersion == "local" ? BuildInfo.marketingVersion : currentVersion
         self.automaticChecksEnabled = releaseTag != "local" && mockRelease == nil
+        self.manualChecksEnabled = mockRelease == nil
         self.defaults = defaults
         self.now = now
         self.request = request
+        let currentChannel = Self.releaseChannelIdentifier(in: defaults)
+        if defaults.string(forKey: Self.lastSuccessfulChannelKey) == currentChannel {
+            self.lastSuccessfulCheck = defaults.object(
+                forKey: Self.lastSuccessfulCheckKey
+            ) as? Date
+        }
 
         if let mockRelease {
             availableRelease = mockRelease
         } else if let data = defaults.data(forKey: Self.cachedReleaseKey),
             let release = try? JSONDecoder().decode(AvailableRelease.self, from: data),
-            Self.isTrustedReleaseURL(release.htmlURL)
+            Self.isTrustedReleaseURL(release.htmlURL),
+            Self.isEligible(
+                release,
+                includesPrereleases: Self.includesPrereleases(in: defaults)
+            )
         {
-            availableRelease = Self.isNewer(release.tagName, than: currentVersion) ? release : nil
+            availableRelease = Self.isNewer(release.tagName, than: self.currentVersion) ? release : nil
         }
     }
 
@@ -164,7 +237,7 @@ final class UpdateChecker: ObservableObject {
         }
 
         if let activeCheck {
-            await activeCheck.value
+            _ = await activeCheck.value
             return
         }
 
@@ -176,19 +249,77 @@ final class UpdateChecker: ObservableObject {
         }
 
         defaults.set(attemptDate, forKey: Self.lastAttemptKey)
-        let task = Task<Void, Never> { [weak self] in
+        activeCheckID += 1
+        let checkID = activeCheckID
+        let task = Task<Bool, Never> { [weak self] in
             guard let self else {
-                return
+                return false
             }
-            await self.performCheck()
+            return await self.performCheck()
         }
         activeCheck = task
-        await task.value
-        activeCheck = nil
+        _ = await task.value
+        if activeCheckID == checkID {
+            activeCheck = nil
+        }
     }
 
-    private func performCheck() async {
-        var urlRequest = URLRequest(url: Self.releasesURL)
+    func checkNow() async -> Bool {
+        guard manualChecksEnabled else {
+            return false
+        }
+
+        if let activeCheck {
+            return await activeCheck.value
+        }
+
+        defaults.set(now(), forKey: Self.lastAttemptKey)
+        activeCheckID += 1
+        let checkID = activeCheckID
+        let task = Task<Bool, Never> { [weak self] in
+            guard let self else {
+                return false
+            }
+            return await self.performCheck()
+        }
+        activeCheck = task
+        let succeeded = await task.value
+        if activeCheckID == checkID {
+            activeCheck = nil
+        }
+        return succeeded
+    }
+
+    func releaseChannelDidChange() async -> Bool {
+        guard manualChecksEnabled else {
+            return false
+        }
+
+        if let activeCheck {
+            activeCheck.cancel()
+            _ = await activeCheck.value
+            activeCheckID += 1
+            self.activeCheck = nil
+        }
+        defaults.removeObject(forKey: Self.lastAttemptKey)
+        defaults.removeObject(forKey: Self.etagKey)
+        lastCheckFailed = false
+        invalidateSuccessfulCheckIfNeeded()
+        if let availableRelease,
+            Self.isEligible(
+                availableRelease,
+                includesPrereleases: Self.includesPrereleases(in: defaults)
+            ) == false
+        {
+            self.availableRelease = nil
+        }
+        return await checkNow()
+    }
+
+    private func performCheck() async -> Bool {
+        let includesPrereleases = Self.includesPrereleases(in: defaults)
+        let releasesURL = includesPrereleases ? Self.allReleasesURL : Self.stableReleaseURL
+        var urlRequest = URLRequest(url: releasesURL)
         urlRequest.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         urlRequest.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         if let etag = defaults.string(forKey: Self.etagKey) {
@@ -197,26 +328,51 @@ final class UpdateChecker: ObservableObject {
 
         do {
             let response = try await request(urlRequest)
+            guard includesPrereleases == Self.includesPrereleases(in: defaults) else {
+                return false
+            }
             if response.statusCode == 304 {
-                return
+                markCheckSuccessful()
+                return true
             }
             guard response.statusCode == 200 else {
-                return
+                markCheckFailed()
+                return false
             }
 
-            let githubRelease = try JSONDecoder().decode(GitHubRelease.self, from: response.data)
+            let githubRelease: GitHubRelease
+            if includesPrereleases {
+                let releases = try JSONDecoder().decode([GitHubRelease].self, from: response.data)
+                guard let newestRelease = Self.newestEligibleRelease(in: releases) else {
+                    availableRelease = nil
+                    defaults.removeObject(forKey: Self.cachedReleaseKey)
+                    if let etag = response.etag {
+                        defaults.set(etag, forKey: Self.etagKey)
+                    } else {
+                        defaults.removeObject(forKey: Self.etagKey)
+                    }
+                    markCheckSuccessful()
+                    return true
+                }
+                githubRelease = newestRelease
+            } else {
+                githubRelease = try JSONDecoder().decode(GitHubRelease.self, from: response.data)
+            }
             guard githubRelease.draft == false,
-                githubRelease.prerelease == false,
-                Self.isTrustedReleaseURL(githubRelease.htmlURL)
+                includesPrereleases || githubRelease.prerelease == false,
+                Self.isTrustedReleaseURL(githubRelease.htmlURL),
+                includesPrereleases == Self.includesPrereleases(in: defaults)
             else {
-                return
+                markCheckFailed()
+                return false
             }
 
             let release = AvailableRelease(
                 tagName: githubRelease.tagName,
                 name: githubRelease.name,
                 body: githubRelease.body ?? "",
-                htmlURL: githubRelease.htmlURL
+                htmlURL: githubRelease.htmlURL,
+                prerelease: githubRelease.prerelease
             )
             if let cachedData = try? JSONEncoder().encode(release) {
                 defaults.set(cachedData, forKey: Self.cachedReleaseKey)
@@ -227,9 +383,38 @@ final class UpdateChecker: ObservableObject {
                 defaults.removeObject(forKey: Self.etagKey)
             }
             availableRelease = Self.isNewer(release.tagName, than: currentVersion) ? release : nil
+            markCheckSuccessful()
+            return true
         } catch {
             // Update checks must never interrupt normal document work.
+            markCheckFailed()
+            return false
         }
+    }
+
+    private func markCheckSuccessful() {
+        let checkDate = now()
+        lastCheckFailed = false
+        lastSuccessfulCheck = checkDate
+        defaults.set(checkDate, forKey: Self.lastSuccessfulCheckKey)
+        defaults.set(
+            Self.releaseChannelIdentifier(in: defaults),
+            forKey: Self.lastSuccessfulChannelKey
+        )
+    }
+
+    private func markCheckFailed() {
+        lastCheckFailed = true
+    }
+
+    private func invalidateSuccessfulCheckIfNeeded() {
+        let currentChannel = Self.releaseChannelIdentifier(in: defaults)
+        guard defaults.string(forKey: Self.lastSuccessfulChannelKey) != currentChannel else {
+            return
+        }
+        lastSuccessfulCheck = nil
+        defaults.removeObject(forKey: Self.lastSuccessfulCheckKey)
+        defaults.removeObject(forKey: Self.lastSuccessfulChannelKey)
     }
 
     private static func isNewer(_ candidate: String, than current: String) -> Bool {
@@ -239,6 +424,37 @@ final class UpdateChecker: ObservableObject {
             return false
         }
         return candidateVersion > currentVersion
+    }
+
+    private static func includesPrereleases(in defaults: UserDefaults) -> Bool {
+        defaults.bool(forKey: UpdatePreferences.includesPrereleasesKey)
+    }
+
+    private static func releaseChannelIdentifier(in defaults: UserDefaults) -> String {
+        includesPrereleases(in: defaults) ? "preview" : "stable"
+    }
+
+    private static func isEligible(
+        _ release: AvailableRelease,
+        includesPrereleases: Bool
+    ) -> Bool {
+        includesPrereleases || release.prerelease == false
+    }
+
+    private static func newestEligibleRelease(in releases: [GitHubRelease]) -> GitHubRelease? {
+        releases.compactMap { release -> (release: GitHubRelease, version: ReleaseVersion)? in
+            guard release.draft == false,
+                isTrustedReleaseURL(release.htmlURL),
+                let version = ReleaseVersion(release.tagName)
+            else {
+                return nil
+            }
+            return (release, version)
+        }
+        .max { left, right in
+            left.version < right.version
+        }?
+        .release
     }
 
     private static func isTrustedReleaseURL(_ url: URL) -> Bool {
@@ -269,7 +485,8 @@ final class UpdateChecker: ObservableObject {
             tagName: tagName,
             name: "MarkLens \(tagName)",
             body: "Debug preview of the MarkLens update notification.",
-            htmlURL: releaseURL
+            htmlURL: releaseURL,
+            prerelease: ReleaseVersion(tagName)?.isPrerelease ?? false
         )
     }
     #endif

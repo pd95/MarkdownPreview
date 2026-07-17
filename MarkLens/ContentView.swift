@@ -248,7 +248,7 @@ struct ContentView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "arrow.down.circle")
                                         .foregroundStyle(Color.accentColor)
-                                    Text("Update")
+                                    Text("Update Available")
                                 }
 
                                 Image(systemName: "arrow.down.circle")

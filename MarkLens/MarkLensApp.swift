@@ -88,6 +88,7 @@ struct MarkLensApp: App {
         Settings {
             MarkLensSettingsView()
                 .environmentObject(localDocumentAccess)
+                .environmentObject(updateChecker)
         }
 #endif
     }

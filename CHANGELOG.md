@@ -2,6 +2,7 @@
 
 ## 1.5.0
 
+- Added an opt-in update setting for receiving GitHub pre-release builds and release candidates.
 - Added native PDF and portable HTML export, an Open in Preview command, remembered export formats, and self-contained Mermaid and local-image output.
 - Improved printed-document pagination by keeping headings with following content, preventing orphaned code-block borders, and wrapping long code lines for paper output.
 - Enabled new Markdown documents with an editable starter, native untitled-document behavior, and links to the CommonMark and GitHub Flavored Markdown references.

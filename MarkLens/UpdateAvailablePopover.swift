@@ -28,7 +28,7 @@ struct UpdateAvailablePopover: View {
             HStack {
                 Spacer()
 
-                Button("Later") {
+                Button("Not Now") {
                     dismiss()
                 }
 

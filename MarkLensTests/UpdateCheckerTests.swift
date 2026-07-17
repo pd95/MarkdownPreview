@@ -8,6 +8,7 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertLessThan(try version("v1.9.0"), try version("1.10.0"))
         XCTAssertEqual(try version("1.2"), try version("1.2.0"))
         XCTAssertLessThan(try version("1.2.0-rc1"), try version("1.2.0"))
+        XCTAssertLessThan(try version("1.2.0-rc2"), try version("1.2.0-rc10"))
         XCTAssertLessThan(try version("1.2.0-rc.2"), try version("1.2.0-rc.10"))
         XCTAssertNil(ReleaseVersion("local"))
         XCTAssertNil(ReleaseVersion("1.two.0"))
@@ -67,6 +68,135 @@ final class UpdateCheckerTests: XCTestCase {
         }
     }
 
+    func testPrereleaseChannelChoosesNewestEligibleRelease() async {
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: UpdatePreferences.includesPrereleasesKey)
+        let checker = UpdateChecker(
+            currentVersion: "1.4.0",
+            releaseTag: "v1.4.0",
+            defaults: defaults,
+            request: { request in
+                XCTAssertEqual(request.url?.path, "/repos/pd95/MarkLens/releases")
+                XCTAssertEqual(request.url?.query, "per_page=20")
+                return UpdateHTTPResponse(
+                    data: Self.releasesJSON([
+                        Self.releaseObject(tag: "v1.4.1"),
+                        Self.releaseObject(tag: "v1.5.0-rc1", prerelease: true),
+                        Self.releaseObject(tag: "v2.0.0-beta1", draft: true, prerelease: true),
+                    ]),
+                    statusCode: 200,
+                    etag: nil
+                )
+            }
+        )
+
+        await checker.checkIfDue()
+
+        XCTAssertEqual(checker.availableRelease?.tagName, "v1.5.0-rc1")
+    }
+
+    func testChangingReleaseChannelImmediatelyChecksAgain() async {
+        let defaults = makeDefaults()
+        var requestedURLs: [URL] = []
+        let checker = UpdateChecker(
+            currentVersion: "1.4.0",
+            releaseTag: "v1.4.0",
+            defaults: defaults,
+            request: { request in
+                requestedURLs.append(request.url!)
+                if defaults.bool(forKey: UpdatePreferences.includesPrereleasesKey) {
+                    return UpdateHTTPResponse(
+                        data: Self.releasesJSON([
+                            Self.releaseObject(tag: "v1.5.0-rc1", prerelease: true)
+                        ]),
+                        statusCode: 200,
+                        etag: nil
+                    )
+                }
+                return UpdateHTTPResponse(
+                    data: Self.releaseJSON(tag: "v1.4.1"),
+                    statusCode: 200,
+                    etag: "stable-etag"
+                )
+            }
+        )
+
+        await checker.checkIfDue()
+        defaults.set(true, forKey: UpdatePreferences.includesPrereleasesKey)
+        _ = await checker.releaseChannelDidChange()
+
+        XCTAssertEqual(requestedURLs.count, 2)
+        XCTAssertEqual(requestedURLs.last?.path, "/repos/pd95/MarkLens/releases")
+        XCTAssertEqual(checker.availableRelease?.tagName, "v1.5.0-rc1")
+    }
+
+    func testChannelRefreshFailureRetainsAnEligibleKnownRelease() async {
+        let defaults = makeDefaults()
+        var requestCount = 0
+        let checker = UpdateChecker(
+            currentVersion: "1.0.0",
+            releaseTag: "v1.0.0",
+            defaults: defaults,
+            request: { _ in
+                requestCount += 1
+                if requestCount == 2 {
+                    throw URLError(.notConnectedToInternet)
+                }
+                return UpdateHTTPResponse(
+                    data: Self.releaseJSON(tag: "v1.1.0"),
+                    statusCode: 200,
+                    etag: nil
+                )
+            }
+        )
+
+        await checker.checkIfDue()
+        defaults.set(true, forKey: UpdatePreferences.includesPrereleasesKey)
+        let succeeded = await checker.releaseChannelDidChange()
+
+        XCTAssertFalse(succeeded)
+        XCTAssertTrue(checker.lastCheckFailed)
+        XCTAssertEqual(checker.availableRelease?.tagName, "v1.1.0")
+        XCTAssertNil(checker.lastSuccessfulCheck)
+    }
+
+    func testStableChannelUsesGitHubPrereleaseFlagInsteadOfTagShape() async {
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: UpdatePreferences.includesPrereleasesKey)
+        let checker = UpdateChecker(
+            currentVersion: "1.0.0",
+            releaseTag: "v1.0.0",
+            defaults: defaults,
+            request: { _ in
+                UpdateHTTPResponse(
+                    data: Self.releasesJSON([
+                        Self.releaseObject(tag: "v2.0.0", prerelease: true)
+                    ]),
+                    statusCode: 200,
+                    etag: nil
+                )
+            }
+        )
+
+        await checker.checkIfDue()
+        XCTAssertEqual(checker.availableRelease?.tagName, "v2.0.0")
+
+        defaults.set(false, forKey: UpdatePreferences.includesPrereleasesKey)
+        _ = await checker.releaseChannelDidChange()
+
+        XCTAssertNil(checker.availableRelease)
+    }
+
+    func testLegacyCachedReleaseInfersPrereleaseFromTag() throws {
+        let legacyJSON = Data(
+            #"{"tagName":"v1.5.0-rc1","name":null,"body":"","htmlURL":"https:\/\/github.com\/pd95\/MarkLens\/releases\/tag\/v1.5.0-rc1"}"#.utf8
+        )
+
+        let release = try JSONDecoder().decode(AvailableRelease.self, from: legacyJSON)
+
+        XCTAssertTrue(release.prerelease)
+    }
+
     func testChecksAreThrottledForSevenDays() async {
         let defaults = makeDefaults()
         var currentDate = Date(timeIntervalSince1970: 1_000_000)
@@ -94,6 +224,48 @@ final class UpdateCheckerTests: XCTestCase {
         currentDate.addTimeInterval(2 * 24 * 60 * 60)
         await checker.checkIfDue()
         XCTAssertEqual(requestCount, 2)
+    }
+
+    func testManualCheckBypassesThrottleAndReportsFailure() async {
+        var requestCount = 0
+        var currentDate = Date(timeIntervalSince1970: 1_000_000)
+        let defaults = makeDefaults()
+        let checker = UpdateChecker(
+            currentVersion: "1.0.0",
+            releaseTag: "v1.0.0",
+            defaults: defaults,
+            now: { currentDate },
+            request: { _ in
+                requestCount += 1
+                if requestCount == 2 {
+                    throw URLError(.notConnectedToInternet)
+                }
+                return UpdateHTTPResponse(
+                    data: Self.releaseJSON(tag: "v1.1.0"),
+                    statusCode: 200,
+                    etag: nil
+                )
+            }
+        )
+
+        await checker.checkIfDue()
+        let successfulCheckDate = checker.lastSuccessfulCheck
+        XCTAssertEqual(successfulCheckDate, currentDate)
+        currentDate.addTimeInterval(60)
+        let succeeded = await checker.checkNow()
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertFalse(succeeded)
+        XCTAssertEqual(checker.lastSuccessfulCheck, successfulCheckDate)
+        XCTAssertTrue(checker.lastCheckFailed)
+        XCTAssertEqual(checker.availableRelease?.tagName, "v1.1.0")
+
+        let restored = UpdateChecker(
+            currentVersion: "1.0.0",
+            releaseTag: "v1.0.0",
+            defaults: defaults
+        )
+        XCTAssertEqual(restored.lastSuccessfulCheck, successfulCheckDate)
     }
 
     func testETagIsSentAndNotModifiedKeepsCachedRelease() async {
@@ -175,6 +347,37 @@ final class UpdateCheckerTests: XCTestCase {
 
         XCTAssertFalse(requested)
         XCTAssertNil(checker.availableRelease)
+    }
+
+    func testLocalBuildCanCheckManually() async {
+        var requested = false
+        let defaults = makeDefaults()
+        let checker = UpdateChecker(
+            currentVersion: "local",
+            releaseTag: "local",
+            defaults: defaults,
+            request: { _ in
+                requested = true
+                return UpdateHTTPResponse(
+                    data: Self.releaseJSON(tag: "v99.0.0"),
+                    statusCode: 200,
+                    etag: nil
+                )
+            }
+        )
+
+        let succeeded = await checker.checkNow()
+
+        XCTAssertTrue(succeeded)
+        XCTAssertTrue(requested)
+        XCTAssertEqual(checker.availableRelease?.tagName, "v99.0.0")
+
+        let restored = UpdateChecker(
+            currentVersion: "local",
+            releaseTag: "local",
+            defaults: defaults
+        )
+        XCTAssertEqual(restored.availableRelease?.tagName, "v99.0.0")
     }
 
     #if DEBUG
@@ -266,14 +469,34 @@ final class UpdateCheckerTests: XCTestCase {
         draft: Bool = false,
         prerelease: Bool = false
     ) -> Data {
-        try! JSONSerialization.data(withJSONObject: [
+        try! JSONSerialization.data(withJSONObject: releaseObject(
+            tag: tag,
+            body: body,
+            url: url,
+            draft: draft,
+            prerelease: prerelease
+        ))
+    }
+
+    nonisolated private static func releasesJSON(_ releases: [[String: Any]]) -> Data {
+        try! JSONSerialization.data(withJSONObject: releases)
+    }
+
+    nonisolated private static func releaseObject(
+        tag: String,
+        body: String = "Release notes",
+        url: String = "https://github.com/pd95/MarkLens/releases/tag/v1.1.0",
+        draft: Bool = false,
+        prerelease: Bool = false
+    ) -> [String: Any] {
+        [
             "tag_name": tag,
             "name": "MarkLens \(tag)",
             "body": body,
             "html_url": url,
             "draft": draft,
             "prerelease": prerelease,
-        ])
+        ]
     }
 }
 #endif
