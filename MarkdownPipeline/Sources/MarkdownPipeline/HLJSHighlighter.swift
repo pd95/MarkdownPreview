@@ -89,11 +89,17 @@ final class HLJSHighlighter {
         guard let hljs = context.objectForKeyedSubscript("hljs") else {
             return nil
         }
-        let options: [String: Any] = ["language": language, "ignoreIllegals": true]
-        guard let result = hljs.invokeMethod("highlight", withArguments: [code, options]) else {
+        guard invoke(hljs, method: "getLanguage", arguments: [language]) != nil else {
             return nil
         }
-        guard let html = result.objectForKeyedSubscript("value")?.toString() else {
+        let options: [String: Any] = ["language": language, "ignoreIllegals": true]
+        guard let result = invoke(hljs, method: "highlight", arguments: [code, options]) else {
+            return nil
+        }
+        guard let value = result.objectForKeyedSubscript("value"),
+              value.isUndefined == false,
+              value.isNull == false,
+              let html = value.toString() else {
             return nil
         }
         return CodeHighlightResult(html: html, language: language)
@@ -108,18 +114,39 @@ final class HLJSHighlighter {
             return nil
         }
         let args: [Any] = subset.isEmpty ? [code] : [code, subset]
-        guard let result = hljs.invokeMethod("highlightAuto", withArguments: args) else {
+        guard let result = invoke(hljs, method: "highlightAuto", arguments: args) else {
             return nil
         }
-        guard let html = result.objectForKeyedSubscript("value")?.toString() else {
+        guard let value = result.objectForKeyedSubscript("value"),
+              value.isUndefined == false,
+              value.isNull == false,
+              let html = value.toString() else {
             return nil
         }
-        let language = result.objectForKeyedSubscript("language")?.toString()
+        let languageValue = result.objectForKeyedSubscript("language")
+        let language = languageValue?.isUndefined == false && languageValue?.isNull == false
+            ? languageValue?.toString()
+            : nil
         return CodeHighlightResult(html: html, language: language)
         #else
         return nil
         #endif
     }
+
+    #if canImport(JavaScriptCore)
+    private func invoke(_ object: JSValue, method: String, arguments: [Any]) -> JSValue? {
+        context.exception = nil
+        let result = object.invokeMethod(method, withArguments: arguments)
+        guard context.exception == nil,
+              let result,
+              result.isUndefined == false,
+              result.isNull == false else {
+            context.exception = nil
+            return nil
+        }
+        return result
+    }
+    #endif
 }
 
 private final class CodeHighlightBox: NSObject {
