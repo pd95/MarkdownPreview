@@ -35,7 +35,6 @@ public struct MarkdownPipeline: Sendable {
         let document = SwiftMarkdownParser().parse(markdown: preparedMarkdown)
         let renderedBody = HTMLVisitor.render(
             document: document,
-            keepLineBreaks: true,
             sourceLineOffset: extraction.bodyLineOffset,
             plugins: coordinator
         )

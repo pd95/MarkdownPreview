@@ -383,6 +383,24 @@ struct MarkdownPipelineHTMLRenderingTests {
         #expect(document.html.contains("<strong>bold</strong>"))
     }
 
+    @Test func followsCommonMarkLineBreakRules() throws {
+        let input = "Soft line\ncontinues.\n\nHard spaces.  \nnext line.\n\nHard slash.\\\nnext again."
+        let document = try MarkdownPipeline().render(
+            input: .string(input),
+            context: PipelineContext()
+        )
+
+        #expect(document.html.contains(
+            "<p data-marklens-source-line=\"1\">Soft line\ncontinues.</p>"
+        ))
+        #expect(document.html.contains(
+            "<p data-marklens-source-line=\"4\">Hard spaces.<br>next line.</p>"
+        ))
+        #expect(document.html.contains(
+            "<p data-marklens-source-line=\"7\">Hard slash.<br>next again.</p>"
+        ))
+    }
+
     @Test func rendersHeadingAnchorsWithDeduping() throws {
         let input = """
         # Hello World

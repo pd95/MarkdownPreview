@@ -24,7 +24,6 @@ struct HTMLVisitor: MarkupVisitor {
         let html: String
     }
 
-    var softBreak: String
     var skipParagraphTags = false
     var currentTable: Table?
     var currentColumnIndex = 0
@@ -46,23 +45,19 @@ struct HTMLVisitor: MarkupVisitor {
     ]
 
     init(
-        keepLineBreaks: Bool = false,
         sourceLineOffset: Int = 0,
         plugins: HTMLPluginCoordinator
     ) {
-        softBreak = keepLineBreaks ? "<br>" : "\n"
         self.sourceLineOffset = sourceLineOffset
         self.plugins = plugins
     }
 
     static func render(
         document: Document,
-        keepLineBreaks: Bool = false,
         sourceLineOffset: Int = 0,
         plugins: HTMLPluginCoordinator
     ) -> RenderResult {
         var visitor = HTMLVisitor(
-            keepLineBreaks: keepLineBreaks,
             sourceLineOffset: sourceLineOffset,
             plugins: plugins
         )
@@ -192,7 +187,7 @@ struct HTMLVisitor: MarkupVisitor {
     }
 
     func visitSoftBreak(_ softBreak: SoftBreak) -> String {
-        self.softBreak
+        "\n"
     }
 
     func visitSymbolLink(_ symbolLink: SymbolLink) -> String {
