@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+
+- Added automatic refresh for open documents changed or atomically replaced by another application, while preserving active source edits when changes conflict.
+- Restored standard Markdown line-break behavior so ordinary newlines remain soft breaks and only trailing spaces or a backslash create visible hard breaks.
+
 ## 1.5.0
 
 - Added an opt-in update setting for receiving GitHub pre-release builds and release candidates.
