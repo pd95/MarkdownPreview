@@ -33,6 +33,7 @@ struct ContentView: View {
     let fileURL: URL?
 #if os(macOS)
     @State private var pendingLocalAccessRequest: LocalAccessRequest?
+    @State private var externalFileMonitor: ExternalFileMonitor?
     @State private var isUpdatePopoverPresented = false
     @State private var failedLocalImageURLs: Set<URL> = []
     @State private var wikiLinkMatches: [URL] = []
@@ -41,6 +42,11 @@ struct ContentView: View {
     @State private var isResolvingWikiLink = false
     @State private var wikiResolutionWork: Task<WikiLinkResolution, Never>?
 #endif
+    @State private var pendingExternalText: String?
+    @State private var isExternalChangeDetailsPresented = false
+    @State private var isExternalConflictPresented = false
+    @State private var isResolvingExternalChange = false
+    @State private var externalResolutionGeneration = 0
     @State private var localDocumentError: String?
     @State private var outputRequest: RenderedDocumentOutputRequest?
     @State private var activeOutputOperationID: UUID?
@@ -118,6 +124,7 @@ struct ContentView: View {
                     scrollTarget: sourceScrollTarget,
                     scrollRequest: sourceScrollRequest
                 )
+                    .disabled(isResolvingExternalChange)
                     .transition(.move(edge: .trailing))
                     .zIndex(1)
             }
@@ -151,9 +158,10 @@ struct ContentView: View {
             if isRawEditing {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", systemImage: "xmark", role: .cancel) {
-                        finishRawEditing(commitChanges: false)
+                        requestFinishRawEditing(commitChanges: false)
                     }
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isResolvingExternalChange)
                 }
 
 #if os(macOS)
@@ -174,11 +182,45 @@ struct ContentView: View {
                     ToolbarSpacer()
                 }
 #endif
+
+#if os(macOS)
+                if pendingExternalText != nil {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            isExternalChangeDetailsPresented = true
+                        } label: {
+                            Label("Changed Externally", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
+                        .help("This file changed outside MarkLens while you were editing.")
+                        .accessibilityIdentifier("externalChangeIndicator")
+                        .popover(isPresented: $isExternalChangeDetailsPresented, arrowEdge: .top) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Label {
+                                    Text("File Changed Externally")
+                                        .foregroundStyle(.primary)
+                                } icon: {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                }
+                                .font(.headline)
+
+                                Text("Your draft is safe. Choose Cancel or Update when you’re ready, and MarkLens will ask which version to keep.")
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(width: 280)
+                            .padding()
+                        }
+                    }
+                }
+#endif
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Update", systemImage: "checkmark") {
-                        finishRawEditing(commitChanges: true)
+                        requestFinishRawEditing(commitChanges: true)
                     }
                     .keyboardShortcut("s")
+                    .disabled(isResolvingExternalChange)
                 }
             } else {
 #if os(macOS)
@@ -359,10 +401,22 @@ struct ContentView: View {
         .task {
             await updateChecker.checkIfDue()
         }
+        .onAppear {
+            startExternalFileMonitor()
+        }
+        .onChange(of: fileURL) {
+            externalFileMonitor?.stop()
+            externalFileMonitor = nil
+            pendingExternalText = nil
+            externalResolutionGeneration += 1
+            isResolvingExternalChange = false
+            startExternalFileMonitor()
+        }
         .onChange(of: scenePhase) {
             guard scenePhase == .active else {
                 return
             }
+            externalFileMonitor?.refresh()
             Task {
                 await updateChecker.checkIfDue()
             }
@@ -370,6 +424,10 @@ struct ContentView: View {
 #endif
         .onDisappear {
 #if os(macOS)
+            externalFileMonitor?.stop()
+            externalFileMonitor = nil
+            externalResolutionGeneration += 1
+            isResolvingExternalChange = false
             cancelWikiResolution()
 #endif
             wikiNavigation.cancelPendingNavigation()
@@ -403,6 +461,17 @@ struct ContentView: View {
             }
         } message: {
             Text(outputErrorDescription ?? "The rendered document could not be produced.")
+        }
+        .alert("File Changed Externally", isPresented: $isExternalConflictPresented) {
+            Button("Keep My Draft", role: .destructive) {
+                keepRawDraft()
+            }
+            Button("Use External Version", role: .destructive) {
+                useExternalVersion()
+            }
+            Button("Continue Editing", role: .cancel) {}
+        } message: {
+            Text("Choose which version to keep. Keeping your draft will replace the file on disk. Using the external version will discard your draft.")
         }
 #if os(macOS)
         .sheet(
@@ -584,14 +653,167 @@ struct ContentView: View {
         isRawEditing = true
     }
 
-    private func finishRawEditing(commitChanges: Bool) {
+    private func requestFinishRawEditing(commitChanges: Bool) {
+        guard pendingExternalText == nil else {
+            isExternalConflictPresented = true
+            return
+        }
+
+#if os(macOS)
+        guard let externalFileMonitor else {
+            finishRawEditing(commitChanges: commitChanges)
+            return
+        }
+        let draftSnapshot = rawDraft
+        externalResolutionGeneration += 1
+        let resolutionGeneration = externalResolutionGeneration
+        isResolvingExternalChange = true
+        Task {
+            let result = await externalFileMonitor.inspectForExternalChange()
+            guard externalResolutionGeneration == resolutionGeneration,
+                  isRawEditing,
+                  self.externalFileMonitor === externalFileMonitor else {
+                return
+            }
+            switch result {
+            case .unchanged:
+                if commitChanges {
+                    await keepRawDraft(
+                        draftSnapshot,
+                        using: externalFileMonitor,
+                        resolutionGeneration: resolutionGeneration
+                    )
+                } else {
+                    isResolvingExternalChange = false
+                    finishRawEditing(commitChanges: false)
+                }
+            case .changed(let text):
+                pendingExternalText = text
+                isResolvingExternalChange = false
+                isExternalConflictPresented = true
+            case .unavailable(let error):
+                isResolvingExternalChange = false
+                outputErrorTitle = "Unable to Check File"
+                outputErrorDescription = error.localizedDescription
+            case .cancelled:
+                isResolvingExternalChange = false
+            }
+        }
+#else
+        finishRawEditing(commitChanges: commitChanges)
+#endif
+    }
+
+    private func keepRawDraft() {
+#if os(macOS)
+        guard let externalFileMonitor else {
+            finishRawEditing(commitChanges: true)
+            return
+        }
+        let draftSnapshot = rawDraft
+        externalResolutionGeneration += 1
+        let resolutionGeneration = externalResolutionGeneration
+        isResolvingExternalChange = true
+        Task {
+            await keepRawDraft(
+                draftSnapshot,
+                using: externalFileMonitor,
+                resolutionGeneration: resolutionGeneration
+            )
+        }
+#else
+        finishRawEditing(commitChanges: true)
+#endif
+    }
+
+    private func useExternalVersion() {
+#if os(macOS)
+        guard let externalFileMonitor else {
+            return
+        }
+        externalResolutionGeneration += 1
+        let resolutionGeneration = externalResolutionGeneration
+        isResolvingExternalChange = true
+        Task {
+            do {
+                let currentText = try await externalFileMonitor.currentFileText()
+                guard externalResolutionGeneration == resolutionGeneration,
+                      isRawEditing,
+                      self.externalFileMonitor === externalFileMonitor else { return }
+                pendingExternalText = currentText
+                isResolvingExternalChange = false
+                finishRawEditing(commitChanges: false)
+            } catch {
+                guard externalResolutionGeneration == resolutionGeneration,
+                      self.externalFileMonitor === externalFileMonitor else { return }
+                isResolvingExternalChange = false
+                outputErrorTitle = "Unable to Load External Version"
+                outputErrorDescription = error.localizedDescription
+            }
+        }
+#else
+        finishRawEditing(commitChanges: false)
+#endif
+    }
+
+#if os(macOS)
+    private func keepRawDraft(
+        _ draft: String,
+        using externalFileMonitor: ExternalFileMonitor,
+        resolutionGeneration: Int
+    ) async {
+        do {
+            try await externalFileMonitor.replaceFile(with: draft)
+            guard externalResolutionGeneration == resolutionGeneration,
+                  isRawEditing,
+                  self.externalFileMonitor === externalFileMonitor else { return }
+            isResolvingExternalChange = false
+            finishRawEditing(commitChanges: true, committedText: draft)
+        } catch ExternalFileMonitor.ReplacementError.fileChanged(let text) {
+            guard externalResolutionGeneration == resolutionGeneration,
+                  self.externalFileMonitor === externalFileMonitor else { return }
+            pendingExternalText = text
+            isResolvingExternalChange = false
+            isExternalConflictPresented = true
+        } catch {
+            guard externalResolutionGeneration == resolutionGeneration,
+                  self.externalFileMonitor === externalFileMonitor else { return }
+            isResolvingExternalChange = false
+            outputErrorTitle = "Unable to Save Draft"
+            outputErrorDescription = error.localizedDescription
+        }
+    }
+#endif
+
+    private func finishRawEditing(commitChanges: Bool, committedText: String? = nil) {
         previewScrollTarget = sourceScrollPosition
         previewScrollRequest += 1
         if commitChanges {
-            document.updateText(rawDraft)
+            document.updateText(committedText ?? rawDraft)
+            pendingExternalText = nil
+        } else if let pendingExternalText {
+            document.updateText(pendingExternalText)
+            self.pendingExternalText = nil
         }
+        isExternalChangeDetailsPresented = false
         isRawEditing = false
     }
+
+#if os(macOS)
+    private func startExternalFileMonitor() {
+        guard externalFileMonitor == nil, let fileURL else {
+            return
+        }
+
+        externalFileMonitor = ExternalFileMonitor(fileURL: fileURL, initialText: document.text) { text in
+            if isRawEditing {
+                pendingExternalText = text
+            } else {
+                document.updateText(text)
+            }
+        }
+    }
+#endif
 
     private var displayedHTML: String {
         wikiNavigation.currentPage?.html ?? document.renderedHTML
