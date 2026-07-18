@@ -2,16 +2,18 @@
 
 ## Project Structure & Module Organization
 - `MarkLens/` contains the main SwiftUI app target (document handling, views, and app entry point).
-- `QuickLookPreview/` hosts the Quick Look extension used for markdown previews.
+- `QuickLookPreview_macOS/` hosts the Quick Look extension used for markdown previews.
 - `Shared/` holds shared Swift code (UTType helpers, app constants).
 - `Icon/` contains source icon assets and design files.
 - `MarkLens.xcodeproj/` is the Xcode project workspace and build metadata.
 
 ## Build, Test, and Development Commands
+- When Xcode MCP tools are available, discover the lazily loaded `mcp__xcode__*` tools first. Use `XcodeListWindows` to obtain the active `tabIdentifier`, then use `BuildProject`, `RunAllTests`/`RunSomeTests`, `GetBuildLog`, and the issue/diagnostic tools for macOS/Xcode validation. Do not conclude that Xcode validation is unavailable merely because the Linux container lacks `xcodebuild`.
+- `BuildProject` builds the active Xcode scheme. For the `MarkLens` scheme, inspect the build log to confirm that both `MarkLens.app` and the embedded `QuickLookPreview_macOS.appex` were compiled and validated.
 - `open MarkLens.xcodeproj` to work in Xcode (recommended for running and debugging).
 - `xcodebuild -project MarkLens.xcodeproj -scheme MarkLens -configuration Debug build` builds the app from the CLI.
 - `xcodebuild -project MarkLens.xcodeproj -scheme QuickLookPreview -configuration Debug build` builds the Quick Look extension.
-- There are currently no automated tests wired into the project.
+- `MarkLensTests/`, `MarkLensUITests/`, and `MarkdownPipeline/Tests/` contain automated tests. Prefer the Xcode MCP test tools for app/UI tests and `swift test --package-path MarkdownPipeline` for Linux-compatible package tests.
 - If `xcodebuild` crashes during device discovery, reset simulator device sets:
   `for DEVICES_SET in playgrounds previews ib test default; do xcrun simctl --set $DEVICES_SET delete all; done`
 - To test Quick Look on macOS from the CLI after building, run:
@@ -24,7 +26,7 @@
 - Aim for best-practice Swift implementations on both iOS and macOS (modern APIs, clear concurrency boundaries, and platform-appropriate design).
 
 ## Testing Guidelines
-- No test targets are present. If adding tests, follow Xcode conventions with `*Tests` targets and place files under a `Tests/` group in the project.
+- Add app tests to the existing `MarkLensTests` or `MarkLensUITests` targets, and package tests under `MarkdownPipeline/Tests/MarkdownPipelineTests`.
 - Name tests with `test` prefixes (e.g., `testRendersMarkdownLinks`) and keep coverage focused on parser behavior and template rendering.
 - Raw HTML is sanitized for GFM-disallowed tags in `MarkdownPipeline/Sources/MarkdownPipeline/HTMLVisitor.swift`; keep tests aligned with that behavior.
 
