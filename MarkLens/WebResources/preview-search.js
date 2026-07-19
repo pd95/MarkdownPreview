@@ -8,7 +8,8 @@
         hits: [],
         currentIndex: -1,
         activeStart: null,
-        lastSelectionStart: null
+        lastSelectionStart: null,
+        lastSelectionText: null
     };
 
     function rootElement() {
@@ -124,7 +125,12 @@
     function captureSelectionAnchor() {
         const offset = selectedDocumentOffset();
         if (offset != null) {
+            const selection = window.getSelection();
             state.lastSelectionStart = offset;
+            state.lastSelectionText = selection ? selection.toString() : null;
+        } else if (document.hasFocus()) {
+            state.lastSelectionStart = null;
+            state.lastSelectionText = null;
         }
         return offset;
     }
@@ -140,6 +146,7 @@
         const offset = captureSelectionAnchor();
         if (offset != null) {
             state.lastSelectionStart = null;
+            state.lastSelectionText = null;
             clearDocumentSelection();
             return offset;
         }
@@ -147,6 +154,7 @@
         if (state.lastSelectionStart != null) {
             const cachedOffset = state.lastSelectionStart;
             state.lastSelectionStart = null;
+            state.lastSelectionText = null;
             return cachedOffset;
         }
 
@@ -168,6 +176,13 @@
             count: state.hits.length,
             index: state.currentIndex >= 0 ? state.currentIndex + 1 : 0
         };
+    }
+
+    function resultWithSelection(searchResult, selection) {
+        if (selection != null) {
+            searchResult.selection = selection;
+        }
+        return searchResult;
     }
 
     function isInViewport(element) {
@@ -395,51 +410,59 @@
             payload = payload || {};
             const command = payload.command || "search";
             const term = payload.term || "";
+            let selection = null;
+
+            if (payload.includeSelection === true) {
+                captureSelectionAnchor();
+                selection = state.lastSelectionText || "";
+            }
 
             if (command === "anchor") {
                 const offset = captureSelectionAnchor();
                 if (offset != null) {
                     state.activeStart = offset;
                 }
-                return result();
+                return resultWithSelection(result(), state.lastSelectionText || "");
             }
 
             if (command === "search") {
                 const offset = consumeSelectionAnchor();
-                return rebuild(term, offset ?? state.activeStart);
+                return resultWithSelection(rebuild(term, offset ?? state.activeStart), selection);
             }
 
             if (term !== state.term) {
                 const offset = consumeSelectionAnchor();
-                return rebuild(term, offset ?? state.activeStart);
+                return resultWithSelection(rebuild(term, offset ?? state.activeStart), selection);
             }
 
             if (state.hits.length === 0) {
-                return result();
+                return resultWithSelection(result(), selection);
             }
 
             const offset = consumeSelectionAnchor();
             if (offset != null) {
-                return command === "previous"
+                const searchResult = command === "previous"
                     ? selectHitAtOrBefore(offset)
                     : selectHitAtOrAfter(offset);
+                return resultWithSelection(searchResult, selection);
             }
 
             if (command === "previous") {
                 const previousIndex = state.currentIndex <= 0 ? state.hits.length - 1 : state.currentIndex - 1;
-                return selectHit(previousIndex, true);
+                return resultWithSelection(selectHit(previousIndex, true), selection);
             }
 
             const nextIndex = state.currentIndex < 0
                 ? 0
                 : (state.currentIndex + 1) % state.hits.length;
-            return selectHit(nextIndex, true);
+            return resultWithSelection(selectHit(nextIndex, true), selection);
         },
         clear() {
             clearHighlights();
             state.term = "";
             state.activeStart = null;
             state.lastSelectionStart = null;
+            state.lastSelectionText = null;
             return result();
         }
     };

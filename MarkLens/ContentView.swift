@@ -60,6 +60,7 @@ struct ContentView: View {
     @State private var previewFindRequest = 0
     @State private var previewFindBackwards = false
     @State private var previewFindAnchorRequest = 0
+    @State private var previewFindFocusRequest = 0
     @State private var previewFindMatchCount = 0
     @State private var previewFindCurrentIndex = 0
     @State private var previewScrollPosition = DocumentScrollPosition.top
@@ -109,6 +110,9 @@ struct ContentView: View {
                 findRequest: previewFindRequest,
                 findBackwards: previewFindBackwards,
                 findAnchorRequest: previewFindAnchorRequest,
+                findSelectionAction: { selection in
+                    previewFindText = selection
+                },
                 scrollPosition: $previewScrollPosition,
                 scrollTarget: previewScrollTarget,
                 scrollRequest: previewScrollRequest
@@ -144,6 +148,7 @@ struct ContentView: View {
                     text: $previewFindText,
                     statusText: findStatusText,
                     canNavigate: previewFindMatchCount > 0,
+                    focusRequest: previewFindFocusRequest,
                     previous: findPrevious,
                     next: findNext,
                     close: closePreviewFind
@@ -344,6 +349,7 @@ struct ContentView: View {
                         Text(findStatusText)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
+                            .accessibilityIdentifier("previewFindStatus")
 
                         Button {
                             findPrevious()
@@ -351,6 +357,7 @@ struct ContentView: View {
                             Label("Previous", systemImage: "chevron.up")
                         }
                         .accessibilityIdentifier("previewFindPreviousButton")
+                        .keyboardShortcut("g", modifiers: [.command, .shift])
                         .disabled(previewFindMatchCount == 0)
 
                         Button {
@@ -359,6 +366,7 @@ struct ContentView: View {
                             Label("Next", systemImage: "chevron.down")
                         }
                         .accessibilityIdentifier("previewFindNextButton")
+                        .keyboardShortcut("g", modifiers: .command)
                         .disabled(previewFindMatchCount == 0)
                     }
                 }
@@ -890,6 +898,7 @@ struct ContentView: View {
 
     private func beginPreviewFind() {
         previewFindAnchorRequest += 1
+        previewFindFocusRequest += 1
         isPreviewFindPresented = true
     }
 
@@ -1302,6 +1311,7 @@ private struct PreviewFindBar: View {
     @Binding var text: String
     var statusText: String
     var canNavigate: Bool
+    var focusRequest: Int
     var previous: () -> Void
     var next: () -> Void
     var close: () -> Void
@@ -1316,12 +1326,23 @@ private struct PreviewFindBar: View {
                 Label("Previous", systemImage: "chevron.left")
             }
             .accessibilityIdentifier("previewFindPreviousButton")
+            .keyboardShortcut("g", modifiers: [.command, .shift])
             .disabled(!canNavigate)
 
             Button(action: next) {
                 Label("Next", systemImage: "chevron.right")
             }
             .accessibilityIdentifier("previewFindNextButton")
+            .keyboardShortcut("g", modifiers: .command)
+            .disabled(!canNavigate)
+
+            Button(action: next) {
+                Text("Next Result")
+            }
+            .keyboardShortcut(.defaultAction)
+            .frame(width: 0, height: 0)
+            .opacity(0)
+            .accessibilityHidden(true)
             .disabled(!canNavigate)
 
             Button("Done", action: close)
@@ -1336,6 +1357,9 @@ private struct PreviewFindBar: View {
             Divider()
         }
         .onAppear {
+            isFocused = true
+        }
+        .onChange(of: focusRequest) {
             isFocused = true
         }
     }
@@ -1357,6 +1381,7 @@ private struct PreviewFindBar: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .frame(minWidth: 74, alignment: .trailing)
+                    .accessibilityIdentifier("previewFindStatus")
             }
 
             if text.isEmpty == false {

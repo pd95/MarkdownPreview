@@ -33,6 +33,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
     var findRequest: Int
     var findBackwards: Bool
     var findAnchorRequest: Int
+    var findSelectionAction: (String) -> Void
     @Binding var scrollPosition: DocumentScrollPosition
     var scrollTarget: DocumentScrollPosition
     var scrollRequest: Int
@@ -59,6 +60,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         findRequest: Int = 0,
         findBackwards: Bool = false,
         findAnchorRequest: Int = 0,
+        findSelectionAction: @escaping (String) -> Void = { _ in },
         scrollPosition: Binding<DocumentScrollPosition> = .constant(.top),
         scrollTarget: DocumentScrollPosition = .top,
         scrollRequest: Int = 0
@@ -81,6 +83,7 @@ struct MarkdownWebView: PlatformViewRepresentable {
         self.findRequest = findRequest
         self.findBackwards = findBackwards
         self.findAnchorRequest = findAnchorRequest
+        self.findSelectionAction = findSelectionAction
         self._scrollPosition = scrollPosition
         self.scrollTarget = scrollTarget
         self.scrollRequest = scrollRequest
@@ -249,8 +252,17 @@ struct MarkdownWebView: PlatformViewRepresentable {
                     applyCustomCSS()
                 }
                 if findAnchorChanged {
-                    updateSearch(command: "anchor")
                     latestFindAnchorRequest = parent.findAnchorRequest
+                    if findChanged {
+                        updateSearch(
+                            command: findTermChanged ? "search" : searchCommand(),
+                            includeSelection: true
+                        )
+                        latestFindTerm = parent.findTerm
+                        latestFindRequest = parent.findRequest
+                    } else {
+                        updateSearch(command: "anchor")
+                    }
                 } else if findChanged {
                     updateSearch(command: findTermChanged ? "search" : searchCommand())
                     latestFindTerm = parent.findTerm
@@ -304,13 +316,18 @@ struct MarkdownWebView: PlatformViewRepresentable {
             parent.findBackwards ? "previous" : "next"
         }
 
-        private func updateSearch(command: String) {
+        private func updateSearch(command: String, includeSelection: Bool = false) {
             guard let webView else { return }
             searchGeneration += 1
             let generation = searchGeneration
 
             installSearchIfNeeded(generation: generation) {
-                self.runSearchCommand(command, generation: generation, in: webView)
+                self.runSearchCommand(
+                    command,
+                    includeSelection: includeSelection,
+                    generation: generation,
+                    in: webView
+                )
             }
         }
 
@@ -330,10 +347,16 @@ struct MarkdownWebView: PlatformViewRepresentable {
             }
         }
 
-        private func runSearchCommand(_ command: String, generation: Int, in webView: WKWebView) {
+        private func runSearchCommand(
+            _ command: String,
+            includeSelection: Bool,
+            generation: Int,
+            in webView: WKWebView
+        ) {
             guard let jsonData = try? JSONSerialization.data(withJSONObject: [
                 "command": command,
-                "term": parent.findTerm
+                "term": parent.findTerm,
+                "includeSelection": includeSelection
             ]),
                   let jsonString = String(data: jsonData, encoding: .utf8) else {
                 return
@@ -345,10 +368,14 @@ struct MarkdownWebView: PlatformViewRepresentable {
                 let dictionary = result as? [String: Any]
                 let count = Self.intValue(dictionary?["count"])
                 let index = Self.intValue(dictionary?["index"])
+                let selection = dictionary?["selection"] as? String
 
                 Task { @MainActor in
                     self.parent.findMatchCount = count
                     self.parent.findCurrentIndex = index
+                    if let selection, selection.isEmpty == false {
+                        self.parent.findSelectionAction(selection)
+                    }
                 }
             }
         }

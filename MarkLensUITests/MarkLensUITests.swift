@@ -56,13 +56,13 @@ final class MarkLensUITests: XCTestCase {
         preview.nextSearchResult()
         capture(preview.window, name: "search-sample-search-next")
 
+        preview.verifyCollapsedSelectionDoesNotReplaceSearch()
+        preview.refocusFindUsingSelection(expectedText: "Think")
+        preview.verifyKeyboardSearchNavigation()
+        capture(preview.window, name: "search-sample-search-think")
+
         preview.closeFind()
         capture(preview.window, name: "search-sample-search-closed")
-
-        preview.openFind()
-        preview.search("Think")
-        preview.submitSearch()
-        capture(preview.window, name: "search-sample-search-think")
     }
 
     @MainActor
@@ -203,6 +203,10 @@ private struct MarkLensAppHandle {
         app.textFields["previewFindField"].firstMatch
     }
 
+    var previewText: XCUIElement {
+        app.staticTexts["Search Fixture"].firstMatch
+    }
+
     func openFind() {
         if findField.exists {
             return
@@ -263,6 +267,90 @@ private struct MarkLensAppHandle {
 
     func submitSearch() {
         findField.typeText("\r")
+    }
+
+    func refocusFindUsingSelection(expectedText: String) {
+        let selectedText = app.staticTexts["Think carefully about the final paragraph."].firstMatch
+        XCTAssertTrue(selectedText.waitForExistence(timeout: 2), "Expected selectable rendered preview text.")
+        selectedText
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+            .doubleClick()
+
+        contentView.typeKey("f", modifierFlags: .command)
+        let deadline = Date().addingTimeInterval(2)
+        while findField.value as? String != expectedText, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertEqual(
+            findField.value as? String,
+            expectedText,
+            "Expected Command-F to copy the web selection into the refocused find field."
+        )
+    }
+
+    func verifyCollapsedSelectionDoesNotReplaceSearch() {
+        let originalSearch = findField.value as? String
+        let selectedText = app.staticTexts["Think carefully about the final paragraph."].firstMatch
+        XCTAssertTrue(selectedText.waitForExistence(timeout: 2), "Expected selectable rendered preview text.")
+        selectedText
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+            .doubleClick()
+        previewText.click()
+
+        contentView.typeKey("f", modifierFlags: .command)
+        let deadline = Date().addingTimeInterval(1)
+        while Date() < deadline {
+            XCTAssertEqual(
+                findField.value as? String,
+                originalSearch,
+                "Expected Command-F to ignore a collapsed, stale web selection."
+            )
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+    }
+
+    func verifyKeyboardSearchNavigation() {
+        let status = app.staticTexts["previewFindStatus"].firstMatch
+        XCTAssertTrue(status.waitForExistence(timeout: 2), "Expected search result status.")
+        XCTAssertTrue(
+            waitForSearchResults(in: status),
+            "Expected matching search results, got label \(status.label), value \(String(describing: status.value))."
+        )
+        XCTAssertEqual(searchStatusText(status), "2 of 2", "Expected search to start at the selected text.")
+
+        previewText.click()
+
+        let initialStatus = searchStatusText(status)
+        contentView.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        XCTAssertTrue(waitForLabelChange(of: status, from: initialStatus), "Expected Return to select the next result.")
+
+        let returnStatus = searchStatusText(status)
+        contentView.typeKey("g", modifierFlags: .command)
+        XCTAssertTrue(waitForLabelChange(of: status, from: returnStatus), "Expected Command-G to select the next result.")
+
+        let nextStatus = searchStatusText(status)
+        contentView.typeKey("g", modifierFlags: [.command, .shift])
+        XCTAssertTrue(waitForLabelChange(of: status, from: nextStatus), "Expected Shift-Command-G to select the previous result.")
+    }
+
+    private func waitForLabelChange(of element: XCUIElement, from originalLabel: String) -> Bool {
+        let deadline = Date().addingTimeInterval(2)
+        while searchStatusText(element) == originalLabel, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        return searchStatusText(element) != originalLabel
+    }
+
+    private func waitForSearchResults(in element: XCUIElement) -> Bool {
+        let deadline = Date().addingTimeInterval(2)
+        while searchStatusText(element).contains(" of ") == false, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        return searchStatusText(element).contains(" of ")
+    }
+
+    private func searchStatusText(_ element: XCUIElement) -> String {
+        (element.value as? String) ?? element.label
     }
 
     func previousSearchResult() {
