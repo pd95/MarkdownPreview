@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.2
+
+- Improved rendered-preview search by refocusing the find field with Command-F, using selected text as the query, and supporting Return, Command-G, and Shift-Command-G result navigation.
+
 ## 1.5.1
 
 - Added automatic refresh for open documents changed or atomically replaced by another application, while preserving active source edits when changes conflict.
